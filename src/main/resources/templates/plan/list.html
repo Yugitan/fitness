@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>训练计划 - Fitness</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/static/css/style.css}">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+    <div class="container">
+        <a class="navbar-brand" th:href="@{/}"><i class="bi bi-lightning-charge-fill"></i>Fitness</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link" th:href="@{/}">首页</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/exercise}">动作库</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/training}">训练记录</a></li>
+                <li class="nav-item"><a class="nav-link active" th:href="@{/plan}">训练计划</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/blogger/list}">博主专区</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/statistics}">数据统计</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="fw-bold mb-0">训练计划模板</h3>
+        <button class="btn btn-primary" onclick="openCreatePlan()">
+            <i class="bi bi-plus-lg"></i> 创建计划
+        </button>
+    </div>
+
+    <!-- 分组筛选 -->
+    <div class="category-filter mb-3" id="groupFilter">
+        <button class="filter-btn active" data-group="">全部</button>
+    </div>
+
+    <!-- 计划列表 -->
+    <div class="row g-3" id="planList"></div>
+    <div id="emptyState" class="card text-center p-5" style="display:none">
+        <i class="bi bi-journal-text fs-1 text-muted"></i>
+        <h5 class="mt-2">暂无训练计划</h5>
+        <p class="text-muted">创建你的专属训练计划，一键套用开始训练！</p>
+    </div>
+</div>
+
+<!-- 计划编辑弹窗 -->
+<div class="modal fade" id="planModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="planModalTitle">创建训练计划</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="planId">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">计划标题</label>
+                        <input type="text" class="form-control" id="planTitle" placeholder="例如: 增肌A计划">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">所属分组</label>
+                        <select class="form-select" id="planGroupId"></select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">难度等级</label>
+                        <select class="form-select" id="planDifficulty">
+                            <option value="1">新手</option>
+                            <option value="2">进阶</option>
+                            <option value="3">高级</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">训练天数</label>
+                        <input type="number" class="form-control" id="planTrainDays" value="1" min="1">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">目标部位</label>
+                        <input type="text" class="form-control" id="planTarget" placeholder="例如: 全身">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">计划描述</label>
+                        <textarea class="form-control" id="planDesc" rows="2" placeholder="描述该计划的特点和目标..."></textarea>
+                    </div>
+                </div>
+
+                <!-- 计划明细 -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold mb-0">训练内容</h6>
+                    <button class="btn btn-outline-primary btn-sm" onclick="addPlanDetail()">
+                        <i class="bi bi-plus"></i> 添加动作
+                    </button>
+                </div>
+                <div id="planDetailContainer"></div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="savePlan()">保存计划</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="footer mt-5">
+    <div class="container text-center">
+        <span>&copy; 2025 Fitness健身记录</span>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/static/js/common.js}"></script>
+<script>
+    let plans = [];
+    let groups = [];
+    let planDetails = [];
+    let editingPlanId = null;
+
+    // 加载分组
+    async function loadGroups() {
+        const result = await API.get('/plan/api/groups');
+        if (result.code === 200) {
+            groups = result.data || [];
+            renderGroupFilter();
+            updatePlanGroupSelect();
+        }
+    }
+
+    function renderGroupFilter() {
+        const container = document.getElementById('groupFilter');
+        container.innerHTML = '<button class="filter-btn active" data-group="">全部</button>' +
+            groups.map(g => `<button class="filter-btn" data-group="${g.id}">${g.name}</button>`).join('');
+    }
+
+    function updatePlanGroupSelect() {
+        const select = document.getElementById('planGroupId');
+        select.innerHTML = groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+    }
+
+    // 分组筛选点击
+    document.getElementById('groupFilter').addEventListener('click', function(e) {
+        if (e.target.classList.contains('filter-btn')) {
+            this.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            renderPlans(e.target.dataset.group);
+        }
+    });
+
+    // 加载计划
+    async function loadPlans() {
+        const result = await API.get('/plan/api/list');
+        if (result.code === 200) {
+            plans = result.data || [];
+            renderPlans('');
+        }
+    }
+
+    function renderPlans(groupId) {
+        const container = document.getElementById('planList');
+        const empty = document.getElementById('emptyState');
+        let filtered = plans;
+        if (groupId) filtered = plans.filter(p => p.groupId == groupId);
+
+        if (!filtered.length) {
+            container.innerHTML = '';
+            empty.style.display = 'block';
+            return;
+        }
+        empty.style.display = 'none';
+
+        container.innerHTML = filtered.map(p => `
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="fw-bold mb-0">${escapeHtml(p.title)}</h5>
+                            <span class="badge ${p.difficultyLevel == 1 ? 'bg-success' : p.difficultyLevel == 2 ? 'bg-warning' : 'bg-danger'}">
+                                ${p.difficultyLevel == 1 ? '新手' : p.difficultyLevel == 2 ? '进阶' : '高级'}
+                            </span>
+                        </div>
+                        <p class="text-muted small">${p.groupName || '未分组'} | ${p.trainDays}天 | ${p.targetBodyPart || '全身'}</p>
+                        <p class="text-muted small">${escapeHtml(p.description || '')}</p>
+                        <div class="d-flex gap-1 flex-wrap mt-2">
+                            ${(p.details || []).slice(0, 4).map(d => `
+                                <span class="badge bg-dark">${d.exerciseName}</span>
+                            `).join('')}
+                            ${(p.details || []).length > 4 ? `<span class="badge bg-secondary">+${p.details.length - 4}个</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-primary btn-sm flex-grow-1" onclick="applyPlan(${p.id})">
+                                <i class="bi bi-play-fill"></i> 套用模板
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="editPlan(${p.id})"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="copyPlan(${p.id})"><i class="bi bi-copy"></i></button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="deletePlan(${p.id})"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    async function applyPlan(id) {
+        const result = await API.get('/plan/api/' + id + '/apply');
+        if (result.code === 200) {
+            Toast.success('模板已加载，开始训练吧！');
+            window.location.href = CTX + '/training';
+        }
+    }
+
+    function openCreatePlan() {
+        editingPlanId = null;
+        document.getElementById('planModalTitle').textContent = '创建训练计划';
+        document.getElementById('planId').value = '';
+        document.getElementById('planTitle').value = '';
+        document.getElementById('planDifficulty').value = '1';
+        document.getElementById('planTrainDays').value = '1';
+        document.getElementById('planTarget').value = '';
+        document.getElementById('planDesc').value = '';
+        planDetails = [];
+        renderPlanDetails();
+        new bootstrap.Modal(document.getElementById('planModal')).show();
+    }
+
+    async function editPlan(id) {
+        const result = await API.get('/plan/api/' + id);
+        if (result.code === 200) {
+            const p = result.data;
+            editingPlanId = p.id;
+            document.getElementById('planModalTitle').textContent = '编辑训练计划';
+            document.getElementById('planId').value = p.id;
+            document.getElementById('planTitle').value = p.title;
+            document.getElementById('planDifficulty').value = p.difficultyLevel;
+            document.getElementById('planTrainDays').value = p.trainDays;
+            document.getElementById('planTarget').value = p.targetBodyPart || '';
+            document.getElementById('planDesc').value = p.description || '';
+            document.getElementById('planGroupId').value = p.groupId || '';
+            planDetails = (p.details || []).map(d => ({
+                id: d.id, exerciseId: d.exerciseId, exerciseName: d.exerciseName,
+                dayNumber: d.dayNumber || 1, sets: d.sets || 3, reps: d.reps || 12,
+                weight: d.weight, restSeconds: d.restSeconds || 60,
+                notes: d.notes || '', sortOrder: d.sortOrder || 0
+            }));
+            renderPlanDetails();
+            new bootstrap.Modal(document.getElementById('planModal')).show();
+        }
+    }
+
+    async function savePlan() {
+        const plan = {
+            title: document.getElementById('planTitle').value,
+            groupId: document.getElementById('planGroupId').value || null,
+            difficultyLevel: parseInt(document.getElementById('planDifficulty').value),
+            trainDays: parseInt(document.getElementById('planTrainDays').value),
+            targetBodyPart: document.getElementById('planTarget').value,
+            description: document.getElementById('planDesc').value,
+            details: planDetails.filter(d => d.exerciseId)
+        };
+
+        if (!plan.title) { Toast.warning('请输入计划标题'); return; }
+
+        let result;
+        if (editingPlanId) {
+            result = await API.put('/plan/api/' + editingPlanId, plan);
+        } else {
+            result = await API.post('/plan/api/create', plan);
+        }
+
+        if (result.code === 200) {
+            Toast.success(result.message);
+            bootstrap.Modal.getInstance(document.getElementById('planModal')).hide();
+            loadPlans();
+        } else {
+            Toast.error(result.message);
+        }
+    }
+
+    async function deletePlan(id) {
+        if (!confirm('确定删除该训练计划吗？')) return;
+        const result = await API.delete('/plan/api/' + id);
+        if (result.code === 200) {
+            Toast.success('删除成功');
+            loadPlans();
+        }
+    }
+
+    async function copyPlan(id) {
+        const result = await API.post('/plan/api/' + id + '/copy');
+        if (result.code === 200) {
+            Toast.success('复制成功');
+            loadPlans();
+        }
+    }
+
+    function addPlanDetail() {
+        planDetails.push({ exerciseId: null, exerciseName: '', dayNumber: 1, sets: 3, reps: 12, weight: null, restSeconds: 60, notes: '', sortOrder: planDetails.length + 1 });
+        renderPlanDetails();
+    }
+
+    function removePlanDetail(index) {
+        planDetails.splice(index, 1);
+        renderPlanDetails();
+    }
+
+    function renderPlanDetails() {
+        const container = document.getElementById('planDetailContainer');
+        if (!planDetails.length) {
+            container.innerHTML = '<p class="text-muted text-center py-3">暂无训练内容，请添加动作</p>';
+            return;
+        }
+        container.innerHTML = planDetails.map((d, i) => `
+            <div class="detail-row">
+                <div class="flex-grow-1">
+                    <strong>${d.exerciseName || '选择动作'}</strong>
+                    <input type="text" class="form-control form-control-sm mt-1" placeholder="动作名称"
+                           value="${escapeHtml(d.exerciseName || '')}"
+                           onchange="planDetails[${i}].exerciseName = this.value">
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <input type="number" class="form-control form-control-sm" style="width:50px" value="${d.sets}" min="1"
+                           onchange="planDetails[${i}].sets = parseInt(this.value)" title="组数">组
+                    <input type="number" class="form-control form-control-sm" style="width:50px" value="${d.reps}" min="1"
+                           onchange="planDetails[${i}].reps = parseInt(this.value)" title="次数">次
+                    <button class="btn btn-outline-danger btn-sm" onclick="removePlanDetail(${i})"><i class="bi bi-x"></i></button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    loadGroups();
+    loadPlans();
+</script>
+</body>
+</html>

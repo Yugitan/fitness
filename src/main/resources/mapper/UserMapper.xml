@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fitness.mapper.UserMapper">
+
+    <resultMap id="BaseResultMap" type="com.fitness.entity.User">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="password" property="password"/>
+        <result column="nickname" property="nickname"/>
+        <result column="avatar" property="avatar"/>
+        <result column="email" property="email"/>
+        <result column="phone" property="phone"/>
+        <result column="bio" property="bio"/>
+        <result column="role" property="role"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="is_deleted" property="isDeleted"/>
+    </resultMap>
+
+    <select id="selectByUsername" resultMap="BaseResultMap">
+        SELECT * FROM user WHERE username = #{username} AND is_deleted = 0
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM user WHERE id = #{id} AND is_deleted = 0
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM user WHERE is_deleted = 0 ORDER BY create_time DESC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user (username, password, nickname, avatar, email, phone, bio, role, status)
+        VALUES (#{username}, #{password}, #{nickname}, #{avatar}, #{email}, #{phone}, #{bio}, #{role}, #{status})
+    </insert>
+
+    <update id="update">
+        UPDATE user
+        SET nickname = #{nickname}, avatar = #{avatar}, email = #{email},
+            phone = #{phone}, bio = #{bio}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE user SET status = #{status} WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        UPDATE user SET is_deleted = 1 WHERE id = #{id}
+    </update>
+</mapper>

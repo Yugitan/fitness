@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fitness.mapper.BloggerMapper">
+
+    <resultMap id="BaseResultMap" type="com.fitness.entity.Blogger">
+        <id column="id" property="id"/>
+        <result column="nickname" property="nickname"/>
+        <result column="avatar" property="avatar"/>
+        <result column="bio" property="bio"/>
+        <result column="source_platform" property="sourcePlatform"/>
+        <result column="platform_url" property="platformUrl"/>
+        <result column="category" property="category"/>
+        <result column="follower_count" property="followerCount"/>
+        <result column="is_recommended" property="isRecommended"/>
+        <result column="sort_weight" property="sortWeight"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="is_deleted" property="isDeleted"/>
+    </resultMap>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM blogger WHERE is_deleted = 0 ORDER BY sort_weight DESC, id ASC
+    </select>
+
+    <select id="selectByCategory" resultMap="BaseResultMap">
+        SELECT * FROM blogger WHERE category = #{category} AND is_deleted = 0 ORDER BY sort_weight DESC
+    </select>
+
+    <select id="selectRecommended" resultMap="BaseResultMap">
+        SELECT * FROM blogger WHERE is_recommended = 1 AND is_deleted = 0 ORDER BY sort_weight DESC
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM blogger WHERE id = #{id} AND is_deleted = 0
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO blogger (nickname, avatar, bio, source_platform, platform_url,
+                              category, follower_count, is_recommended, sort_weight)
+        VALUES (#{nickname}, #{avatar}, #{bio}, #{sourcePlatform}, #{platformUrl},
+                #{category}, #{followerCount}, #{isRecommended}, #{sortWeight})
+    </insert>
+
+    <update id="update">
+        UPDATE blogger
+        SET nickname = #{nickname}, avatar = #{avatar}, bio = #{bio},
+            source_platform = #{sourcePlatform}, platform_url = #{platformUrl},
+            category = #{category}, follower_count = #{followerCount},
+            is_recommended = #{isRecommended}, sort_weight = #{sortWeight}
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        UPDATE blogger SET is_deleted = 1 WHERE id = #{id}
+    </update>
+</mapper>

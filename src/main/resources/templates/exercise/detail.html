@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${exercise.name} + ' - Fitness'">动作详情 - Fitness</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/static/css/style.css}">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+    <div class="container">
+        <a class="navbar-brand" th:href="@{/}"><i class="bi bi-lightning-charge-fill"></i>Fitness</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link" th:href="@{/}">首页</a></li>
+                <li class="nav-item"><a class="nav-link active" th:href="@{/exercise}">动作库</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/training}">训练记录</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/plan}">训练计划</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/blogger/list}">博主专区</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/statistics}">数据统计</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a th:href="@{/}">首页</a></li>
+            <li class="breadcrumb-item"><a th:href="@{/exercise}">动作库</a></li>
+            <li class="breadcrumb-item active" th:text="${exercise.name}">动作名称</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- 左侧：视频播放器 -->
+        <div class="col-lg-7 mb-4">
+            <div class="video-container" th:if="${exercise.videoPath != null and !exercise.videoPath.isEmpty()}">
+                <video controls preload="metadata" th:src="@{${exercise.videoPath}}">
+                    您的浏览器不支持HTML5视频播放
+                </video>
+            </div>
+            <div class="video-container bg-dark d-flex align-items-center justify-content-center" style="min-height:300px" th:unless="${exercise.videoPath != null and !exercise.videoPath.isEmpty()}">
+                <div class="text-center text-muted">
+                    <i class="bi bi-camera-video-off fs-1"></i>
+                    <p class="mt-2">暂无示范视频</p>
+                    <p class="small">后期可上传本地MP4示范视频</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：动作信息 -->
+        <div class="col-lg-5">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <span class="badge fs-6" th:classappend="'badge-' + ${#strings.toLowerCase(exercise.category)}" th:text="${exercise.category}">分类</span>
+                <span class="text-muted small">浏览次数: <span th:text="${exercise.viewCount}">0</span></span>
+            </div>
+
+            <h2 class="fw-bold mb-3" th:text="${exercise.name}">动作名称</h2>
+
+            <!-- 动作讲解 -->
+            <div class="card mb-3">
+                <div class="card-header"><i class="bi bi-book me-2"></i>动作讲解</div>
+                <div class="card-body">
+                    <p style="white-space:pre-line" th:text="${exercise.description}" class="mb-0">动作讲解内容</p>
+                </div>
+            </div>
+
+            <!-- 训练要点 -->
+            <div class="card mb-3">
+                <div class="card-header"><i class="bi bi-lightbulb me-2"></i>训练要点</div>
+                <div class="card-body">
+                    <p style="white-space:pre-line" th:text="${exercise.keyPoints}" class="mb-0">训练要点内容</p>
+                </div>
+            </div>
+
+            <!-- 注意事项 -->
+            <div class="card mb-3 border-warning">
+                <div class="card-header text-orange"><i class="bi bi-exclamation-triangle me-2"></i>注意事项</div>
+                <div class="card-body">
+                    <p style="white-space:pre-line" th:text="${exercise.precautions}" class="mb-0">注意事项内容</p>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="d-grid gap-2">
+                <button class="btn btn-primary btn-lg" onclick="addToTraining()">
+                    <i class="bi bi-plus-circle"></i> 添加到今日训练列表
+                </button>
+            </div>
+
+            <!-- 预留：评论区域占位 -->
+            <div class="card mt-3">
+                <div class="card-header"><i class="bi bi-chat-dots me-2"></i>评论（即将开放）</div>
+                <div class="card-body text-center text-muted py-4">
+                    <p class="mb-0">评论功能即将上线，敬请期待！</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="footer mt-5">
+    <div class="container text-center">
+        <span>&copy; 2025 Fitness健身记录</span>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/static/js/common.js}"></script>
+<script>
+    function addToTraining() {
+        const exerciseId = /*[[${exercise.id}]]*/ 0;
+        const exerciseName = /*[[${exercise.name}]]*/ '';
+        let trainingList = LocalStore.get('trainingList', []);
+        if (!trainingList.find(t => t.exerciseId === exerciseId)) {
+            trainingList.push({ exerciseId, exerciseName, sets: 3, reps: 12, weight: 0 });
+            LocalStore.set('trainingList', trainingList);
+            Toast.success('已添加到今日训练列表');
+        } else {
+            Toast.warning('该动作已在训练列表中');
+        }
+    }
+</script>
+</body>
+</html>

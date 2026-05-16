@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${plan.title} + ' - 计划详情 - Fitness'">计划详情 - Fitness</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/static/css/style.css}">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+    <div class="container">
+        <a class="navbar-brand" th:href="@{/}"><i class="bi bi-lightning-charge-fill"></i>Fitness</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link" th:href="@{/}">首页</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/exercise}">动作库</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/training}">训练记录</a></li>
+                <li class="nav-item"><a class="nav-link active" th:href="@{/plan}">训练计划</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/blogger/list}">博主专区</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/statistics}">数据统计</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a th:href="@{/}">首页</a></li>
+            <li class="breadcrumb-item"><a th:href="@{/plan}">训练计划</a></li>
+            <li class="breadcrumb-item active" th:text="${plan.title}">计划名称</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <h2 class="fw-bold mb-2" th:text="${plan.title}">计划标题</h2>
+            <div class="d-flex gap-2 mb-3">
+                <span class="badge" th:classappend="${plan.difficultyLevel == 1 ? 'bg-success' : plan.difficultyLevel == 2 ? 'bg-warning' : 'bg-danger'}"
+                      th:text="${plan.difficultyLevel == 1 ? '新手' : plan.difficultyLevel == 2 ? '进阶' : '高级'}">难度</span>
+                <span class="badge bg-info" th:text="${plan.groupName ?: '未分组'}">分组</span>
+                <span class="text-muted small">训练天数: <span th:text="${plan.trainDays}">1</span>天</span>
+                <span class="text-muted small">目标部位: <span th:text="${plan.targetBodyPart ?: '全身'}">全身</span></span>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">计划描述</div>
+                <div class="card-body">
+                    <p th:text="${plan.description ?: '暂无描述'}" class="mb-0">计划描述</p>
+                </div>
+            </div>
+
+            <h5 class="fw-bold mb-3">训练内容</h5>
+            <div id="detailList">
+                <div class="detail-row" th:each="d : ${plan.details}">
+                    <div class="flex-grow-1">
+                        <strong th:text="${d.exerciseName}">动作名称</strong>
+                        <span class="text-muted ms-2" th:text="${d.exerciseCategory}">分类</span>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-dark me-2" th:text="'第' + ${d.dayNumber} + '天'">训练日</span>
+                        <span class="badge bg-secondary" th:text="${d.sets} + '组 × ' + ${d.reps} + '次'">组次</span>
+                        <span class="text-muted ms-2" th:if="${d.restSeconds != null}" th:text="'休息' + ${d.restSeconds} + 's'">休息</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button class="btn btn-primary btn-lg" onclick="applyThisPlan()">
+                    <i class="bi bi-play-fill"></i> 一键套用开始训练
+                </button>
+                <button class="btn btn-outline-secondary btn-lg" id="shareBtn" title="分享功能即将开放">
+                    <i class="bi bi-share"></i> 分享
+                </button>
+            </div>
+
+            <!-- 预留：点赞、收藏、评论区域 -->
+            <div class="d-flex gap-3 mt-3">
+                <button class="btn btn-outline-secondary btn-sm" disabled><i class="bi bi-hand-thumbs-up"></i> 点赞 (即将开放)</button>
+                <button class="btn btn-outline-secondary btn-sm" disabled><i class="bi bi-star"></i> 收藏 (即将开放)</button>
+                <button class="btn btn-outline-secondary btn-sm" disabled><i class="bi bi-chat"></i> 评论 (即将开放)</button>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">计划信息</div>
+                <div class="card-body">
+                    <p class="small text-muted">浏览次数: <span th:text="${plan.viewCount}">0</span></p>
+                    <p class="small text-muted">创建时间: <span th:text="${#dates.format(plan.createTime, 'yyyy-MM-dd HH:mm')}">-</span></p>
+                    <hr class="border-secondary">
+                    <p class="small text-muted">分享功能即将上线，届时可将计划分享给好友</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="footer mt-5">
+    <div class="container text-center">
+        <span>&copy; 2025 Fitness健身记录</span>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/static/js/common.js}"></script>
+<script>
+    function applyThisPlan() {
+        const planId = /*[[${plan.id}]]*/ 0;
+        window.location.href = CTX + '/training';
+    }
+</script>
+</body>
+</html>

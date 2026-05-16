@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fitness.mapper.TrainingRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.fitness.entity.TrainingRecord">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="train_date" property="trainDate"/>
+        <result column="duration" property="duration"/>
+        <result column="total_sets" property="totalSets"/>
+        <result column="total_reps" property="totalReps"/>
+        <result column="calories" property="calories"/>
+        <result column="difficulty" property="difficulty"/>
+        <result column="is_completed" property="isCompleted"/>
+        <result column="notes" property="notes"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="is_deleted" property="isDeleted"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM training_record WHERE id = #{id} AND is_deleted = 0
+    </select>
+
+    <select id="selectByDateRange" resultMap="BaseResultMap">
+        SELECT * FROM training_record
+        WHERE is_deleted = 0
+        <if test="startDate != null">AND train_date &gt;= #{startDate}</if>
+        <if test="endDate != null">AND train_date &lt;= #{endDate}</if>
+        ORDER BY train_date DESC, create_time DESC
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM training_record
+        WHERE is_deleted = 0
+        <if test="userId != null">AND user_id = #{userId}</if>
+        ORDER BY train_date DESC, create_time DESC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO training_record (user_id, train_date, duration, total_sets, total_reps,
+                                     calories, difficulty, is_completed, notes)
+        VALUES (#{userId}, #{trainDate}, #{duration}, #{totalSets}, #{totalReps},
+                #{calories}, #{difficulty}, #{isCompleted}, #{notes})
+    </insert>
+
+    <update id="update">
+        UPDATE training_record
+        SET train_date = #{trainDate}, duration = #{duration}, notes = #{notes}
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        UPDATE training_record SET is_deleted = 1 WHERE id = #{id}
+    </update>
+
+    <update id="markCompleted">
+        UPDATE training_record
+        SET is_completed = 1, total_sets = #{totalSets}, total_reps = #{totalReps}
+        WHERE id = #{id}
+    </update>
+</mapper>

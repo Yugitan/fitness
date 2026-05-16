@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitness健身记录 - 你的个人健身助手</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/static/css/style.css}">
+</head>
+<body>
+
+<!-- 导航栏 -->
+<nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+    <div class="container">
+        <a class="navbar-brand" th:href="@{/}"><i class="bi bi-lightning-charge-fill"></i>Fitness</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link" th:href="@{/}">首页</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/exercise}">动作库</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/training}">训练记录</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/plan}">训练计划</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/blogger/list}">博主专区</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/statistics}">数据统计</a></li>
+            </ul>
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" href="#" id="loginBtn"><i class="bi bi-person-circle"></i> 登录/注册</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Hero区域 -->
+<section class="hero-section">
+    <div class="container">
+        <h1>掌控每一次<span>训练</span></h1>
+        <p>记录训练历程，规划健身目标，让进步一目了然</p>
+        <div class="mt-4">
+            <a th:href="@{/training}" class="btn btn-primary btn-lg me-2"><i class="bi bi-plus-circle"></i> 开始今日训练</a>
+            <a th:href="@{/exercise}" class="btn btn-outline-light btn-lg"><i class="bi bi-book"></i> 浏览动作库</a>
+        </div>
+    </div>
+</section>
+
+<!-- 快速统计 -->
+<section class="container mt-4">
+    <div class="row g-3">
+        <div class="col-6 col-md-3">
+            <div class="card stat-card">
+                <div class="stat-number" id="statExercises">26</div>
+                <div class="stat-label">内置健身动作</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card">
+                <div class="stat-number">6</div>
+                <div class="stat-label">训练分类</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card">
+                <div class="stat-number">4</div>
+                <div class="stat-label">默认计划模板</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card">
+                <div class="stat-number">∞</div>
+                <div class="stat-label">无限记录</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 动作分类快捷入口 -->
+<section class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="fw-bold mb-0">训练分类</h4>
+        <a th:href="@{/exercise}" class="btn btn-outline-secondary btn-sm">查看全部 <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <div class="row g-3">
+        <div class="col-6 col-md-4 col-lg-2" th:each="cat : ${T(java.util.List).of('胸部','背部','肩部','手臂','腿部','核心')}">
+            <a th:href="@{/exercise(category=${cat})}" class="text-decoration-none">
+                <div class="card text-center p-3 cursor-pointer">
+                    <i class="bi bi-heart-pulse fs-2 text-orange mb-2"></i>
+                    <h6 class="fw-bold mb-0" th:text="${cat}">分类</h6>
+                </div>
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- 热门推荐动作 -->
+<section class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="fw-bold mb-0">常用动作</h4>
+        <a th:href="@{/exercise}" class="btn btn-outline-secondary btn-sm">全部动作 <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <div class="row g-3">
+        <div class="col-6 col-md-4 col-lg-3" th:each="ex : ${exercises}" th:if="${exStat.index < 8}">
+            <a th:href="@{/exercise/{id}(id=${ex.id})}" class="text-decoration-none">
+                <div class="card exercise-card h-100">
+                    <div class="card-body">
+                        <span class="badge category-badge" th:classappend="'badge-' + ${#strings.toLowerCase(ex.category)}" th:text="${ex.category}">分类</span>
+                        <h5 class="mt-4" th:text="${ex.name}">动作名称</h5>
+                        <p class="text-muted small mb-0" th:text="${#strings.abbreviate(ex.description, 60)}">描述</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- 热门博主推荐（预留） -->
+<section class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="fw-bold mb-0"><i class="bi bi-star-fill text-orange"></i> 热门博主推荐</h4>
+        <a th:href="@{/blogger/list}" class="btn btn-outline-secondary btn-sm">更多博主 <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <div class="row g-3" id="bloggerSection">
+        <div class="col-12">
+            <div class="card text-center p-4">
+                <p class="text-muted mb-0"><i class="bi bi-people-fill fs-3"></i></p>
+                <p class="text-muted mb-0">博主专区即将上线，敬请期待！<br><small>后期将支持浏览B站/抖音知名健身博主的训练计划</small></p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 页脚 -->
+<footer class="footer mt-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-6 text-center text-md-start">
+                <span>&copy; 2025 Fitness健身记录</span>
+            </div>
+            <div class="col-md-6 text-center text-md-end">
+                <a th:href="@{/admin/login/page}" class="text-muted small">管理员登录</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/static/js/common.js}"></script>
+</body>
+</html>

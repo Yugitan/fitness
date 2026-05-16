@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>博主专区 - Fitness</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/static/css/style.css}">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+    <div class="container">
+        <a class="navbar-brand" th:href="@{/}"><i class="bi bi-lightning-charge-fill"></i>Fitness</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link" th:href="@{/}">首页</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/exercise}">动作库</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/training}">训练记录</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/plan}">训练计划</a></li>
+                <li class="nav-item"><a class="nav-link active" th:href="@{/blogger/list}">博主专区</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/statistics}">数据统计</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <h3 class="fw-bold mb-4"><i class="bi bi-people-fill text-orange"></i> 知名博主专区</h3>
+
+    <div class="card text-center p-5">
+        <i class="bi bi-hourglass-split fs-1 text-muted"></i>
+        <h5 class="mt-3">博主专区即将上线</h5>
+        <p class="text-muted">后期将展示B站、抖音、小红书等平台的知名健身博主及其训练计划。<br>支持按分类筛选、查看博主主页、一键导入博主训练计划等功能。</p>
+        <div class="mt-2">
+            <span class="badge bg-dark me-2">健体</span>
+            <span class="badge bg-dark me-2">力量举</span>
+            <span class="badge bg-dark me-2">CrossFit</span>
+            <span class="badge bg-dark me-2">瑜伽</span>
+        </div>
+    </div>
+</div>
+
+<footer class="footer mt-5">
+    <div class="container text-center">
+        <span>&copy; 2025 Fitness健身记录</span>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/static/js/common.js}"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fitness.mapper.TrainingRecordDetailMapper">
+
+    <resultMap id="DetailResultMap" type="com.fitness.entity.TrainingRecordDetail">
+        <id column="id" property="id"/>
+        <result column="record_id" property="recordId"/>
+        <result column="exercise_id" property="exerciseId"/>
+        <result column="set_number" property="setNumber"/>
+        <result column="reps" property="reps"/>
+        <result column="weight" property="weight"/>
+        <result column="is_completed" property="isCompleted"/>
+        <result column="notes" property="notes"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="is_deleted" property="isDeleted"/>
+        <result column="exercise_name" property="exerciseName"/>
+        <result column="exercise_category" property="exerciseCategory"/>
+    </resultMap>
+
+    <select id="selectByRecordId" resultMap="DetailResultMap">
+        SELECT d.*, e.name AS exercise_name, e.category AS exercise_category
+        FROM training_record_detail d
+        LEFT JOIN exercise e ON d.exercise_id = e.id
+        WHERE d.record_id = #{recordId} AND d.is_deleted = 0
+        ORDER BY d.sort_order ASC, d.id ASC
+    </select>
+
+    <insert id="batchInsert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO training_record_detail (record_id, exercise_id, set_number, reps, weight,
+                                            is_completed, notes, sort_order)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.recordId}, #{item.exerciseId}, #{item.setNumber}, #{item.reps},
+             #{item.weight}, #{item.isCompleted}, #{item.notes}, #{item.sortOrder})
+        </foreach>
+    </insert>
+
+    <update id="update">
+        UPDATE training_record_detail
+        SET set_number = #{setNumber}, reps = #{reps}, weight = #{weight},
+            notes = #{notes}
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteByRecordId">
+        UPDATE training_record_detail SET is_deleted = 1 WHERE record_id = #{recordId}
+    </update>
+
+    <update id="updateCompleted">
+        UPDATE training_record_detail SET is_completed = #{isCompleted} WHERE id = #{id}
+    </update>
+</mapper>

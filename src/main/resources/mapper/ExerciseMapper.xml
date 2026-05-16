@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fitness.mapper.ExerciseMapper">
+
+    <resultMap id="BaseResultMap" type="com.fitness.entity.Exercise">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="category" property="category"/>
+        <result column="description" property="description"/>
+        <result column="key_points" property="keyPoints"/>
+        <result column="precautions" property="precautions"/>
+        <result column="video_path" property="videoPath"/>
+        <result column="upload_user_id" property="uploadUserId"/>
+        <result column="audit_status" property="auditStatus"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="sort_weight" property="sortWeight"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="is_deleted" property="isDeleted"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM exercise WHERE id = #{id} AND is_deleted = 0
+    </select>
+
+    <select id="selectByCategory" resultMap="BaseResultMap">
+        SELECT * FROM exercise
+        WHERE category = #{category} AND is_deleted = 0
+        ORDER BY sort_weight DESC, id ASC
+    </select>
+
+    <select id="searchByKeyword" resultMap="BaseResultMap">
+        SELECT * FROM exercise
+        WHERE is_deleted = 0
+        AND (name LIKE CONCAT('%', #{keyword}, '%')
+             OR description LIKE CONCAT('%', #{keyword}, '%')
+             OR key_points LIKE CONCAT('%', #{keyword}, '%'))
+        ORDER BY sort_weight DESC, id ASC
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM exercise
+        WHERE is_deleted = 0
+        ORDER BY sort_weight DESC, id ASC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO exercise (name, category, description, key_points, precautions, video_path,
+                              upload_user_id, audit_status, sort_weight, view_count)
+        VALUES (#{name}, #{category}, #{description}, #{keyPoints}, #{precautions}, #{videoPath},
+                #{uploadUserId}, #{auditStatus}, #{sortWeight}, #{viewCount})
+    </insert>
+
+    <update id="update">
+        UPDATE exercise
+        SET name = #{name}, category = #{category}, description = #{description},
+            key_points = #{keyPoints}, precautions = #{precautions},
+            video_path = #{videoPath}, sort_weight = #{sortWeight}
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        UPDATE exercise SET is_deleted = 1 WHERE id = #{id}
+    </update>
+
+    <update id="updateViewCount">
+        UPDATE exercise SET view_count = view_count + 1 WHERE id = #{id}
+    </update>
+</mapper>

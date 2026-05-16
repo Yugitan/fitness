@@ -1,0 +1,61 @@
+package com.fitness.controller;
+
+import com.fitness.service.BloggerService;
+import com.fitness.service.ExerciseService;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+
+import javax.annotation.Resource;
+
+/**
+ * 首页控制器
+ */
+@Controller
+public class IndexController {
+
+    @Resource
+    private ExerciseService exerciseService;
+
+    @Resource
+    private BloggerService bloggerService;
+
+    /** 前台首页 */
+    @GetMapping("/")
+    public String index(Model model) {
+        model.addAttribute("exercises", exerciseService.listAll());
+        model.addAttribute("bloggers", bloggerService.listRecommended());
+        return "index";
+    }
+
+    /** 动作库页面 */
+    @GetMapping("/exercise")
+    public String exercisePage(Model model) {
+        model.addAttribute("exercises", exerciseService.listAll());
+        return "exercise/list";
+    }
+
+    /** 训练记录页面 */
+    @GetMapping("/training")
+    public String trainingPage() {
+        return "training/record";
+    }
+
+    /** 训练计划页面 */
+    @GetMapping("/plan")
+    public String planPage() {
+        return "plan/list";
+    }
+
+    /** 博主列表页面（预留） */
+    @GetMapping("/blogger")
+    public String bloggerPage() {
+        return "blogger/list";
+    }
+
+    /** 管理员后台入口（预留） */
+    @GetMapping("/admin/login/page")
+    public String adminLoginPage() {
+        return "admin/login";
+    }
+}

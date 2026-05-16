@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>创建训练计划 - Fitness</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/static/css/style.css}">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+    <div class="container">
+        <a class="navbar-brand" th:href="@{/}"><i class="bi bi-lightning-charge-fill"></i>Fitness</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link" th:href="@{/}">首页</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/exercise}">动作库</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/training}">训练记录</a></li>
+                <li class="nav-item"><a class="nav-link active" th:href="@{/plan}">训练计划</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/blogger/list}">博主专区</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/statistics}">数据统计</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <h3 class="fw-bold mb-4">创建训练计划</h3>
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">计划标题</label>
+                            <input type="text" class="form-control" id="planTitle" placeholder="例如: 推拉腿三分化">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">所属分组</label>
+                            <select class="form-select" id="planGroup">
+                                <option th:each="g : ${groups}" th:value="${g.id}" th:text="${g.name}">分组</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">难度等级</label>
+                            <select class="form-select" id="planDifficulty">
+                                <option value="1">新手</option>
+                                <option value="2">进阶</option>
+                                <option value="3">高级</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">训练天数</label>
+                            <input type="number" class="form-control" id="planTrainDays" value="1" min="1" max="7">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">目标部位</label>
+                            <input type="text" class="form-control" id="planTarget" placeholder="例如: 上身推">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">计划描述</label>
+                            <textarea class="form-control" id="planDesc" rows="3" placeholder="描述计划特点和训练目标..."></textarea>
+                        </div>
+                    </div>
+
+                    <hr class="border-secondary my-4">
+                    <h5 class="fw-bold mb-3">训练动作安排</h5>
+                    <div id="detailList">
+                        <p class="text-muted text-center py-3">点击下方按钮添加训练动作</p>
+                    </div>
+                    <button class="btn btn-outline-primary" onclick="addDetail()">
+                        <i class="bi bi-plus-circle"></i> 添加训练动作
+                    </button>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button class="btn btn-primary btn-lg" onclick="savePlan()">保存计划</button>
+                        <a th:href="@{/plan}" class="btn btn-outline-secondary btn-lg">取消</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="footer mt-5">
+    <div class="container text-center">
+        <span>&copy; 2025 Fitness健身记录</span>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/static/js/common.js}"></script>
+</body>
+</html>

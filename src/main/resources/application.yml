@@ -1,0 +1,49 @@
+# ============================================================
+# 健身记录Web应用 - 应用配置
+# ============================================================
+
+# 服务端口
+server:
+  port: 8080
+
+# 数据源配置
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/fitness?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+
+  # Thymeleaf模板配置
+  thymeleaf:
+    prefix: classpath:/templates/
+    suffix: .html
+    mode: HTML
+    encoding: UTF-8
+    cache: false
+    servlet:
+      content-type: text/html
+
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+  # 静态资源
+  web:
+    resources:
+      static-locations: classpath:/static/
+
+# MyBatis配置
+mybatis:
+  type-aliases-package: com.fitness.entity
+  mapper-locations: classpath:mapper/*.xml
+  config-location: classpath:mybatis-config.xml
+
+# 应用自定义配置
+app:
+  name: Fitness健身记录
+  version: 1.0.0
+  # 视频上传路径
+  video-upload-path: ./uploads/video/

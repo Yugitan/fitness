@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fitness.mapper.PlanDetailMapper">
+
+    <resultMap id="DetailResultMap" type="com.fitness.entity.PlanDetail">
+        <id column="id" property="id"/>
+        <result column="plan_id" property="planId"/>
+        <result column="exercise_id" property="exerciseId"/>
+        <result column="day_number" property="dayNumber"/>
+        <result column="sets" property="sets"/>
+        <result column="reps" property="reps"/>
+        <result column="weight" property="weight"/>
+        <result column="rest_seconds" property="restSeconds"/>
+        <result column="notes" property="notes"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="is_deleted" property="isDeleted"/>
+        <result column="exercise_name" property="exerciseName"/>
+        <result column="exercise_category" property="exerciseCategory"/>
+    </resultMap>
+
+    <select id="selectByPlanId" resultMap="DetailResultMap">
+        SELECT pd.*, e.name AS exercise_name, e.category AS exercise_category
+        FROM plan_detail pd
+        LEFT JOIN exercise e ON pd.exercise_id = e.id
+        WHERE pd.plan_id = #{planId} AND pd.is_deleted = 0
+        ORDER BY pd.day_number ASC, pd.sort_order ASC, pd.id ASC
+    </select>
+
+    <insert id="batchInsert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO plan_detail (plan_id, exercise_id, day_number, sets, reps, weight,
+                                  rest_seconds, notes, sort_order)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.planId}, #{item.exerciseId}, #{item.dayNumber}, #{item.sets},
+             #{item.reps}, #{item.weight}, #{item.restSeconds}, #{item.notes}, #{item.sortOrder})
+        </foreach>
+    </insert>
+
+    <update id="deleteByPlanId">
+        UPDATE plan_detail SET is_deleted = 1 WHERE plan_id = #{planId}
+    </update>
+</mapper>

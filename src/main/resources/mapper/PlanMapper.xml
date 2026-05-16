@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fitness.mapper.PlanMapper">
+
+    <resultMap id="BaseResultMap" type="com.fitness.entity.Plan">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="group_id" property="groupId"/>
+        <result column="title" property="title"/>
+        <result column="description" property="description"/>
+        <result column="target_body_part" property="targetBodyPart"/>
+        <result column="difficulty_level" property="difficultyLevel"/>
+        <result column="train_days" property="trainDays"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="collect_count" property="collectCount"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="is_public" property="isPublic"/>
+        <result column="share_code" property="shareCode"/>
+        <result column="share_time" property="shareTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="is_deleted" property="isDeleted"/>
+        <result column="group_name" property="groupName"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT p.*, pg.name AS group_name
+        FROM plan p
+        LEFT JOIN plan_group pg ON p.group_id = pg.id
+        WHERE p.id = #{id} AND p.is_deleted = 0
+    </select>
+
+    <select id="selectByGroupId" resultMap="BaseResultMap">
+        SELECT p.*, pg.name AS group_name
+        FROM plan p
+        LEFT JOIN plan_group pg ON p.group_id = pg.id
+        WHERE p.is_deleted = 0
+        <if test="groupId != null">AND p.group_id = #{groupId}</if>
+        <if test="userId != null">AND p.user_id = #{userId}</if>
+        ORDER BY p.create_time DESC
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT p.*, pg.name AS group_name
+        FROM plan p
+        LEFT JOIN plan_group pg ON p.group_id = pg.id
+        WHERE p.is_deleted = 0
+        <if test="userId != null">AND p.user_id = #{userId}</if>
+        ORDER BY p.create_time DESC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO plan (user_id, group_id, title, description, target_body_part,
+                          difficulty_level, train_days, is_public, share_code)
+        VALUES (#{userId}, #{groupId}, #{title}, #{description}, #{targetBodyPart},
+                #{difficultyLevel}, #{trainDays}, #{isPublic}, #{shareCode})
+    </insert>
+
+    <update id="update">
+        UPDATE plan
+        SET group_id = #{groupId}, title = #{title}, description = #{description},
+            target_body_part = #{targetBodyPart}, difficulty_level = #{difficultyLevel},
+            train_days = #{trainDays}
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        UPDATE plan SET is_deleted = 1 WHERE id = #{id}
+    </update>
+
+    <update id="updateViewCount">
+        UPDATE plan SET view_count = view_count + 1 WHERE id = #{id}
+    </update>
+</mapper>

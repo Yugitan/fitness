@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据统计 - Fitness</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/static/css/style.css}">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+    <div class="container">
+        <a class="navbar-brand" th:href="@{/}"><i class="bi bi-lightning-charge-fill"></i>Fitness</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link" th:href="@{/}">首页</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/exercise}">动作库</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/training}">训练记录</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/plan}">训练计划</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/blogger/list}">博主专区</a></li>
+                <li class="nav-item"><a class="nav-link active" th:href="@{/statistics}">数据统计</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <h3 class="fw-bold mb-4"><i class="bi bi-bar-chart-fill text-orange"></i> 数据统计</h3>
+
+    <!-- 概览卡片 -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card stat-card">
+                <div class="stat-number">0</div>
+                <div class="stat-label">总训练天数</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card">
+                <div class="stat-number">0</div>
+                <div class="stat-label">总训练组数</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card">
+                <div class="stat-number">0</div>
+                <div class="stat-label">总训练次数</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card">
+                <div class="stat-number">0</div>
+                <div class="stat-label">完成训练计划</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 折线图区域（预留） -->
+    <div class="row g-3">
+        <div class="col-lg-8">
+            <div class="card mb-3">
+                <div class="card-header"><i class="bi bi-graph-up me-2"></i>月度训练趋势</div>
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-bar-chart fs-1 text-muted"></i>
+                    <p class="text-muted mt-2 mb-0">图表功能即将上线</p>
+                    <p class="text-muted small">后续将展示折线图统计月度/年度训练数据趋势</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card mb-3">
+                <div class="card-header"><i class="bi bi-pie-chart me-2"></i>动作使用频率</div>
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-pie-chart fs-1 text-muted"></i>
+                    <p class="text-muted mt-2 mb-0">图表功能即将上线</p>
+                    <p class="text-muted small">后续将展示柱状图统计动作使用频率</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="footer mt-5">
+    <div class="container text-center">
+        <span>&copy; 2025 Fitness健身记录</span>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/static/js/common.js}"></script>
+</body>
+</html>

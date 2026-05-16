@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fitness.mapper.BloggerPlanMapper">
+
+    <resultMap id="BaseResultMap" type="com.fitness.entity.BloggerPlan">
+        <id column="id" property="id"/>
+        <result column="blogger_id" property="bloggerId"/>
+        <result column="title" property="title"/>
+        <result column="cover_image" property="coverImage"/>
+        <result column="difficulty_level" property="difficultyLevel"/>
+        <result column="target_audience" property="targetAudience"/>
+        <result column="target_body_part" property="targetBodyPart"/>
+        <result column="train_days" property="trainDays"/>
+        <result column="video_url" property="videoUrl"/>
+        <result column="video_type" property="videoType"/>
+        <result column="summary" property="summary"/>
+        <result column="detail_arrangement" property="detailArrangement"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="collect_count" property="collectCount"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="is_online" property="isOnline"/>
+        <result column="sort_weight" property="sortWeight"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="is_deleted" property="isDeleted"/>
+        <result column="blogger_nickname" property="bloggerNickname"/>
+        <result column="blogger_avatar" property="bloggerAvatar"/>
+    </resultMap>
+
+    <select id="selectByBloggerId" resultMap="BaseResultMap">
+        SELECT bp.*, b.nickname AS blogger_nickname, b.avatar AS blogger_avatar
+        FROM blogger_plan bp
+        LEFT JOIN blogger b ON bp.blogger_id = b.id
+        WHERE bp.blogger_id = #{bloggerId} AND bp.is_deleted = 0
+        ORDER BY bp.sort_weight DESC, bp.id ASC
+    </select>
+
+    <select id="selectAllOnline" resultMap="BaseResultMap">
+        SELECT bp.*, b.nickname AS blogger_nickname, b.avatar AS blogger_avatar
+        FROM blogger_plan bp
+        LEFT JOIN blogger b ON bp.blogger_id = b.id
+        WHERE bp.is_online = 1 AND bp.is_deleted = 0
+        ORDER BY bp.sort_weight DESC, bp.id ASC
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT bp.*, b.nickname AS blogger_nickname, b.avatar AS blogger_avatar
+        FROM blogger_plan bp
+        LEFT JOIN blogger b ON bp.blogger_id = b.id
+        WHERE bp.id = #{id} AND bp.is_deleted = 0
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO blogger_plan (blogger_id, title, cover_image, difficulty_level,
+                                   target_audience, target_body_part, train_days,
+                                   video_url, video_type, summary, detail_arrangement,
+                                   is_online, sort_weight)
+        VALUES (#{bloggerId}, #{title}, #{coverImage}, #{difficultyLevel},
+                #{targetAudience}, #{targetBodyPart}, #{trainDays},
+                #{videoUrl}, #{videoType}, #{summary}, #{detailArrangement},
+                #{isOnline}, #{sortWeight})
+    </insert>
+
+    <update id="update">
+        UPDATE blogger_plan
+        SET title = #{title}, cover_image = #{coverImage}, difficulty_level = #{difficultyLevel},
+            target_audience = #{targetAudience}, target_body_part = #{targetBodyPart},
+            train_days = #{trainDays}, video_url = #{videoUrl}, video_type = #{videoType},
+            summary = #{summary}, detail_arrangement = #{detailArrangement},
+            is_online = #{isOnline}, sort_weight = #{sortWeight}
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        UPDATE blogger_plan SET is_deleted = 1 WHERE id = #{id}
+    </update>
+
+    <update id="updateViewCount">
+        UPDATE blogger_plan SET view_count = view_count + 1 WHERE id = #{id}
+    </update>
+</mapper>

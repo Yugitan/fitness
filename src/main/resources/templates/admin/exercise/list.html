@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>动作库管理 - Fitness后台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/static/css/style.css}">
+    <style>
+        .admin-layout { display: flex; min-height: calc(100vh - 56px); }
+        .admin-main { flex: 1; padding: 1.5rem; background: var(--bg-primary); }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark sticky-top" style="background:var(--bg-secondary);border-bottom:1px solid var(--border-color);">
+    <div class="container-fluid px-3">
+        <a class="navbar-brand" th:href="@{/admin}"><i class="bi bi-lightning-charge-fill text-orange"></i> Fitness管理后台</a>
+        <div class="d-flex gap-2">
+            <a th:href="@{/}" class="btn btn-outline-secondary btn-sm">前台</a>
+            <button class="btn btn-outline-secondary btn-sm" onclick="logout()">退出</button>
+        </div>
+    </div>
+</nav>
+
+<div class="admin-layout">
+    <div class="admin-sidebar" style="width:220px;flex-shrink:0;">
+        <nav class="nav flex-column">
+            <a class="nav-link sidebar-link" th:href="@{/admin}">仪表盘</a>
+            <a class="nav-link sidebar-link" th:href="@{/admin/user/list}">用户管理</a>
+            <a class="nav-link sidebar-link active" th:href="@{/admin/exercise/list}">动作库管理</a>
+            <a class="nav-link sidebar-link" th:href="@{/admin/plan/list}">计划管理</a>
+            <a class="nav-link sidebar-link" th:href="@{/admin/blogger/list}">博主管理</a>
+            <a class="nav-link sidebar-link" th:href="@{/admin/blogger/plan}">博主计划管理</a>
+            <a class="nav-link sidebar-link" th:href="@{/admin/config}">系统配置</a>
+        </nav>
+    </div>
+
+    <div class="admin-main">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="fw-bold mb-0">动作库管理</h4>
+            <button class="btn btn-primary btn-sm" onclick="openCreate()"><i class="bi bi-plus"></i> 新增动作</button>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table" id="exerciseTable">
+                        <thead>
+                            <tr><th>ID</th><th>动作名称</th><th>分类</th><th>浏览</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="exerciseTbody">
+                            <tr><td colspan="5" class="text-center text-muted py-4">加载中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑弹窗 -->
+<div class="modal fade" id="exerciseModal">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="modalTitle">新增动作</h5>
+                <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="exId">
+                <div class="mb-2"><label class="form-label">动作名称</label><input class="form-control" id="exName"></div>
+                <div class="mb-2"><label class="form-label">分类</label>
+                    <select class="form-select" id="exCategory">
+                        <option>胸部</option><option>背部</option><option>肩部</option><option>手臂</option><option>腿部</option><option>核心</option>
+                    </select>
+                </div>
+                <div class="mb-2"><label class="form-label">动作讲解</label><textarea class="form-control" id="exDesc" rows="3"></textarea></div>
+                <div class="mb-2"><label class="form-label">训练要点</label><textarea class="form-control" id="exKeyPoints" rows="3"></textarea></div>
+                <div class="mb-2"><label class="form-label">注意事项</label><textarea class="form-control" id="exPrecautions" rows="3"></textarea></div>
+                <div class="mb-2"><label class="form-label">排序权重</label><input type="number" class="form-control" id="exSortWeight" value="0"></div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button class="btn btn-primary" onclick="saveExercise()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/static/js/common.js}"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let exerciseModal;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        exerciseModal = new bootstrap.Modal(document.getElementById('exerciseModal'));
+        loadExercises();
+    });
+
+    async function loadExercises() {
+        const result = await API.get('/exercise/api/list');
+        const tbody = document.getElementById('exerciseTbody');
+        if (result.code === 200) {
+            tbody.innerHTML = (result.data||[]).map(e => `
+                <tr>
+                    <td>${e.id}</td><td>${e.name}</td><td>${e.category}</td><td>${e.viewCount||0}</td>
+                    <td>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="editExercise(${e.id})"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteExercise(${e.id})"><i class="bi bi-trash"></i></button>
+                    </td>
+                </tr>`).join('');
+        }
+    }
+
+    function openCreate() {
+        document.getElementById('modalTitle').textContent = '新增动作';
+        document.getElementById('exId').value = '';
+        ['exName','exDesc','exKeyPoints','exPrecautions'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('exSortWeight').value = '0';
+        exerciseModal.show();
+    }
+
+    async function editExercise(id) {
+        const result = await API.get('/exercise/api/' + id);
+        if (result.code === 200) {
+            const e = result.data;
+            document.getElementById('modalTitle').textContent = '编辑动作';
+            document.getElementById('exId').value = e.id;
+            document.getElementById('exName').value = e.name;
+            document.getElementById('exCategory').value = e.category;
+            document.getElementById('exDesc').value = e.description || '';
+            document.getElementById('exKeyPoints').value = e.keyPoints || '';
+            document.getElementById('exPrecautions').value = e.precautions || '';
+            document.getElementById('exSortWeight').value = e.sortWeight || 0;
+            exerciseModal.show();
+        }
+    }
+
+    async function saveExercise() {
+        const data = {
+            name: document.getElementById('exName').value,
+            category: document.getElementById('exCategory').value,
+            description: document.getElementById('exDesc').value,
+            keyPoints: document.getElementById('exKeyPoints').value,
+            precautions: document.getElementById('exPrecautions').value,
+            sortWeight: parseInt(document.getElementById('exSortWeight').value) || 0
+        };
+        const id = document.getElementById('exId').value;
+        const result = id ? await API.put('/admin/api/exercise/' + id, data) : await API.post('/admin/api/exercise/create', data);
+        if (result.code === 200) { Toast.success(result.message); exerciseModal.hide(); loadExercises(); }
+        else Toast.error(result.message);
+    }
+
+    async function deleteExercise(id) {
+        if (!confirm('确定删除？')) return;
+        const result = await API.delete('/admin/api/exercise/' + id);
+        if (result.code === 200) { Toast.success('删除成功'); loadExercises(); }
+    }
+
+    function logout() { API.post('/admin/logout').then(() => location.href = CTX + '/admin/login/page'); }
+</script>
+</body>
+</html>

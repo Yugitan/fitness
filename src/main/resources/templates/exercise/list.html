@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>健身动作库 - Fitness</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/static/css/style.css}">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+    <div class="container">
+        <a class="navbar-brand" th:href="@{/}"><i class="bi bi-lightning-charge-fill"></i>Fitness</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link" th:href="@{/}">首页</a></li>
+                <li class="nav-item"><a class="nav-link active" th:href="@{/exercise}">动作库</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/training}">训练记录</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/plan}">训练计划</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/blogger/list}">博主专区</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/statistics}">数据统计</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <h3 class="fw-bold mb-3">健身动作库</h3>
+
+    <!-- 搜索框 -->
+    <div class="search-box mb-3">
+        <i class="bi bi-search search-icon"></i>
+        <input type="text" class="form-control form-control-lg" id="searchInput"
+               placeholder="搜索动作名称、训练要点...">
+    </div>
+
+    <!-- 分类筛选 -->
+    <div class="category-filter" id="categoryFilter">
+        <button class="filter-btn active" data-category="">全部</button>
+        <button class="filter-btn badge-chest" data-category="胸部">胸部</button>
+        <button class="filter-btn badge-back" data-category="背部">背部</button>
+        <button class="filter-btn badge-shoulder" data-category="肩部">肩部</button>
+        <button class="filter-btn badge-arm" data-category="手臂">手臂</button>
+        <button class="filter-btn badge-leg" data-category="腿部">腿部</button>
+        <button class="filter-btn badge-core" data-category="核心">核心</button>
+    </div>
+
+    <!-- 统计信息 -->
+    <p class="text-muted mb-3" id="resultInfo">共 <span id="countSpan">0</span> 个动作</p>
+
+    <!-- 动作列表 -->
+    <div class="row g-3" id="exerciseList"></div>
+</div>
+
+<footer class="footer mt-5">
+    <div class="container text-center">
+        <span>&copy; 2025 Fitness健身记录</span>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/static/js/common.js}"></script>
+<script>
+    let allExercises = [];
+    let currentCategory = '';
+    let currentKeyword = '';
+
+    // 分类按钮切换
+    document.getElementById('categoryFilter').addEventListener('click', function(e) {
+        if (e.target.classList.contains('filter-btn')) {
+            this.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            currentCategory = e.target.dataset.category;
+            renderList();
+        }
+    });
+
+    // 搜索输入（防抖）
+    let searchTimer;
+    document.getElementById('searchInput').addEventListener('input', function() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            currentKeyword = this.value.trim();
+            if (currentKeyword) {
+                searchExercises(currentKeyword);
+            } else {
+                loadExercises();
+            }
+        }, 300);
+    });
+
+    // 加载所有动作
+    async function loadExercises() {
+        const result = await API.get('/exercise/api/list?category=' + (currentCategory || ''));
+        if (result.code === 200) {
+            allExercises = result.data || [];
+            renderList();
+        }
+    }
+
+    // 搜索动作
+    async function searchExercises(keyword) {
+        const result = await API.get('/exercise/api/list?keyword=' + encodeURIComponent(keyword));
+        if (result.code === 200) {
+            allExercises = result.data || [];
+            renderList();
+        }
+    }
+
+    // 渲染列表
+    function renderList() {
+        const container = document.getElementById('exerciseList');
+        document.getElementById('countSpan').textContent = allExercises.length;
+
+        if (!allExercises.length) {
+            container.innerHTML = '<div class="col-12"><div class="card text-center p-5"><p class="text-muted mb-0">未找到匹配的动作</p></div></div>';
+            return;
+        }
+
+        container.innerHTML = allExercises.map(ex => `
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="card exercise-card h-100" onclick="location.href = CTX + '/exercise/${ex.id}'">
+                    <div class="card-body">
+                        <span class="badge category-badge badge-${getCategoryClass(ex.category)}">${ex.category}</span>
+                        <h5 class="mt-4">${escapeHtml(ex.name)}</h5>
+                        <p class="text-muted small mb-2">${escapeHtml(truncateText(ex.description, 50))}</p>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-primary btn-sm flex-grow-1" onclick="event.stopPropagation(); addToTraining(${ex.id}, '${escapeHtml(ex.name)}')">
+                                <i class="bi bi-plus-lg"></i> 加入训练
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function getCategoryClass(cat) {
+        const map = { '胸部': 'chest', '背部': 'back', '肩部': 'shoulder', '手臂': 'arm', '腿部': 'leg', '核心': 'core' };
+        return map[cat] || 'core';
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function truncateText(text, len) {
+        if (!text) return '';
+        return text.length > len ? text.substring(0, len) + '...' : text;
+    }
+
+    function addToTraining(id, name) {
+        let trainingList = LocalStore.get('trainingList', []);
+        if (!trainingList.find(t => t.exerciseId === id)) {
+            trainingList.push({ exerciseId: id, exerciseName: name, sets: 3, reps: 12, weight: 0 });
+            LocalStore.set('trainingList', trainingList);
+            Toast.success('已添加到今日训练列表');
+        } else {
+            Toast.warning('该动作已在训练列表中');
+        }
+    }
+
+    // 初始加载
+    loadExercises();
+</script>
+</body>
+</html>
