@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户注册 - Fitness</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/static/css/style.css}">
+</head>
+<body class="d-flex align-items-center justify-content-center" style="min-height:100vh;background:var(--bg-base);">
+
+<div class="card" style="width:100%;max-width:420px;">
+    <div class="card-body p-4">
+        <div class="text-center mb-4">
+            <i class="bi bi-person-plus text-orange" style="font-size:2.5rem;"></i>
+            <h4 class="fw-bold mt-2">创建账号</h4>
+            <p class="text-muted small">加入Fitness，开始你的健身之旅</p>
+        </div>
+
+        <div id="registerError" class="alert alert-danger" style="display:none;"></div>
+
+        <div class="mb-3">
+            <label class="form-label">用户名 <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="username" placeholder="4-20位字母数字或下划线" maxlength="20" autofocus>
+            <small class="text-muted">仅允许字母、数字、下划线，4-20位</small>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">昵称</label>
+            <input type="text" class="form-control" id="nickname" placeholder="给自己起个名字" maxlength="30">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">密码 <span class="text-danger">*</span></label>
+            <input type="password" class="form-control" id="password" placeholder="6-20位密码" maxlength="20">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">确认密码 <span class="text-danger">*</span></label>
+            <input type="password" class="form-control" id="confirmPassword" placeholder="再次输入密码" maxlength="20">
+        </div>
+        <button class="btn btn-primary w-100 btn-lg" onclick="doRegister()">
+            <i class="bi bi-check2-circle"></i> 注册
+        </button>
+
+        <div class="text-center mt-3">
+            <span class="text-muted small">已有账号？</span>
+            <a th:href="@{/login}" class="small">立即登录</a>
+            <span class="text-muted small mx-2">|</span>
+            <a th:href="@{/}" class="text-muted small"><i class="bi bi-arrow-left"></i> 返回首页</a>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/static/js/common.js}"></script>
+<script>
+    function showError(msg) {
+        const el = document.getElementById('registerError');
+        el.style.display = 'block';
+        el.textContent = msg;
+    }
+
+    async function doRegister() {
+        const username = document.getElementById('username').value.trim();
+        const nickname = document.getElementById('nickname').value.trim();
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        const errorEl = document.getElementById('registerError');
+        errorEl.style.display = 'none';
+
+        if (!username) { showError('请输入用户名'); return; }
+        if (!/^[a-zA-Z0-9_]{4,20}$/.test(username)) { showError('用户名仅允许字母、数字、下划线，4-20位'); return; }
+        if (!password) { showError('请输入密码'); return; }
+        if (password.length < 6) { showError('密码至少6位'); return; }
+        if (password !== confirmPassword) { showError('两次密码输入不一致'); return; }
+
+        const data = { username, password };
+        if (nickname) data.nickname = nickname;
+
+        const result = await API.post('/user/api/register', data);
+        if (result.code === 200) {
+            Toast.success('注册成功，即将跳转登录页');
+            setTimeout(() => { window.location.href = CTX + '/login'; }, 1000);
+        } else {
+            showError(result.message || '注册失败');
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') doRegister();
+    });
+</script>
+</body>
+</html>

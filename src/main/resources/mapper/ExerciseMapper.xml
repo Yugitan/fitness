@@ -29,6 +29,16 @@
         ORDER BY sort_weight DESC, id ASC
     </select>
 
+    <select id="searchByCategoryAndKeyword" resultMap="BaseResultMap">
+        SELECT * FROM exercise
+        WHERE is_deleted = 0
+        AND category = #{category}
+        AND (name LIKE CONCAT('%', #{keyword}, '%')
+             OR description LIKE CONCAT('%', #{keyword}, '%')
+             OR key_points LIKE CONCAT('%', #{keyword}, '%'))
+        ORDER BY sort_weight DESC, id ASC
+    </select>
+
     <select id="searchByKeyword" resultMap="BaseResultMap">
         SELECT * FROM exercise
         WHERE is_deleted = 0

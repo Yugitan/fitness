@@ -34,9 +34,13 @@ public class ExerciseController {
     public Result list(@RequestParam(required = false) String category,
                         @RequestParam(required = false) String keyword) {
         List<Exercise> exercises;
-        if (keyword != null && !keyword.trim().isEmpty()) {
+        boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
+        boolean hasCategory = category != null && !category.trim().isEmpty();
+        if (hasKeyword && hasCategory) {
+            exercises = exerciseService.searchByCategoryAndKeyword(category, keyword.trim());
+        } else if (hasKeyword) {
             exercises = exerciseService.search(keyword);
-        } else if (category != null && !category.trim().isEmpty()) {
+        } else if (hasCategory) {
             exercises = exerciseService.listByCategory(category);
         } else {
             exercises = exerciseService.listAll();

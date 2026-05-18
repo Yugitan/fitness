@@ -21,6 +21,9 @@ public interface ExerciseMapper {
     /** 关键词模糊搜索动作 */
     List<Exercise> searchByKeyword(@Param("keyword") String keyword);
 
+    /** 分类+关键词组合搜索 */
+    List<Exercise> searchByCategoryAndKeyword(@Param("category") String category, @Param("keyword") String keyword);
+
     /** 查询所有动作（按排序权重降序） */
     List<Exercise> selectAll();
 

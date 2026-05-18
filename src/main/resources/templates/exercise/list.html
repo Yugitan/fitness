@@ -25,6 +25,11 @@
                 <li class="nav-item"><a class="nav-link" th:href="@{/blogger/list}">博主专区</a></li>
                 <li class="nav-item"><a class="nav-link" th:href="@{/statistics}">数据统计</a></li>
             </ul>
+            <ul class="navbar-nav" id="authNav">
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/login}"><i class="bi bi-person-circle"></i> 登录/注册</a>
+                </li>
+            </ul>
         </div>
     </div>
 </nav>
@@ -40,14 +45,14 @@
     </div>
 
     <!-- 分类筛选 -->
-    <div class="category-filter" id="categoryFilter">
+    <div class="category-filter mb-3" id="categoryFilter">
         <button class="filter-btn active" data-category="">全部</button>
-        <button class="filter-btn badge-chest" data-category="胸部">胸部</button>
-        <button class="filter-btn badge-back" data-category="背部">背部</button>
-        <button class="filter-btn badge-shoulder" data-category="肩部">肩部</button>
-        <button class="filter-btn badge-arm" data-category="手臂">手臂</button>
-        <button class="filter-btn badge-leg" data-category="腿部">腿部</button>
-        <button class="filter-btn badge-core" data-category="核心">核心</button>
+        <button class="filter-btn badge-chest" data-category="胸部"><i class="cat-icon chest"></i>胸部</button>
+        <button class="filter-btn badge-back" data-category="背部"><i class="cat-icon back"></i>背部</button>
+        <button class="filter-btn badge-shoulder" data-category="肩部"><i class="cat-icon shoulder"></i>肩部</button>
+        <button class="filter-btn badge-arm" data-category="手臂"><i class="cat-icon arm"></i>手臂</button>
+        <button class="filter-btn badge-leg" data-category="腿部"><i class="cat-icon leg"></i>腿部</button>
+        <button class="filter-btn badge-core" data-category="核心"><i class="cat-icon core"></i>核心</button>
     </div>
 
     <!-- 统计信息 -->
@@ -66,6 +71,24 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script th:src="@{/static/js/common.js}"></script>
 <script>
+    (async function() {
+        const user = await Auth.current();
+        const authNav = document.getElementById('authNav');
+        if (user) {
+            authNav.innerHTML = `<li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="bi bi-person-check"></i> ${user.nickname || user.username}</a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><span class="dropdown-item-text text-muted small">${user.role >= 1 ? '管理员' : '普通用户'}</span></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" onclick="Auth.logout()"><i class="bi bi-box-arrow-right"></i> 退出登录</a></li>
+                </ul></li>`;
+        } else {
+            GuestMode.init();
+            if (GuestMode.isLocked()) { window.location.href = CTX + '/'; return; }
+        }
+    })();
+</script>
+<script>
     let allExercises = [];
     let currentCategory = '';
     let currentKeyword = '';
@@ -76,7 +99,7 @@
             this.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
             currentCategory = e.target.dataset.category;
-            renderList();
+            loadExercises();
         }
     });
 
@@ -86,26 +109,17 @@
         clearTimeout(searchTimer);
         searchTimer = setTimeout(() => {
             currentKeyword = this.value.trim();
-            if (currentKeyword) {
-                searchExercises(currentKeyword);
-            } else {
-                loadExercises();
-            }
+            loadExercises();
         }, 300);
     });
 
-    // 加载所有动作
+    // 加载动作（合并category + keyword参数）
     async function loadExercises() {
-        const result = await API.get('/exercise/api/list?category=' + (currentCategory || ''));
-        if (result.code === 200) {
-            allExercises = result.data || [];
-            renderList();
-        }
-    }
-
-    // 搜索动作
-    async function searchExercises(keyword) {
-        const result = await API.get('/exercise/api/list?keyword=' + encodeURIComponent(keyword));
+        let params = [];
+        if (currentCategory) params.push('category=' + encodeURIComponent(currentCategory));
+        if (currentKeyword) params.push('keyword=' + encodeURIComponent(currentKeyword));
+        const url = '/exercise/api/list' + (params.length ? '?' + params.join('&') : '');
+        const result = await API.get(url);
         if (result.code === 200) {
             allExercises = result.data || [];
             renderList();
@@ -126,7 +140,7 @@
             <div class="col-6 col-md-4 col-lg-3">
                 <div class="card exercise-card h-100" onclick="location.href = CTX + '/exercise/${ex.id}'">
                     <div class="card-body">
-                        <span class="badge category-badge badge-${getCategoryClass(ex.category)}">${ex.category}</span>
+                        <span class="badge category-badge badge-${getCategoryClass(ex.category)}"><i class="cat-icon ${getCategoryClass(ex.category)}"></i>${ex.category}</span>
                         <h5 class="mt-4">${escapeHtml(ex.name)}</h5>
                         <p class="text-muted small mb-2">${escapeHtml(truncateText(ex.description, 50))}</p>
                         <div class="d-flex gap-2">
@@ -167,6 +181,20 @@
             Toast.warning('该动作已在训练列表中');
         }
     }
+
+    // 从URL参数读取分类预筛选
+    (function initCategoryFromURL() {
+        var params = new URLSearchParams(window.location.search);
+        var cat = params.get('category');
+        if (cat) {
+            currentCategory = cat;
+            var buttons = document.querySelectorAll('#categoryFilter .filter-btn');
+            buttons.forEach(function(b) {
+                b.classList.remove('active');
+                if (b.dataset.category === cat) b.classList.add('active');
+            });
+        }
+    })();
 
     // 初始加载
     loadExercises();

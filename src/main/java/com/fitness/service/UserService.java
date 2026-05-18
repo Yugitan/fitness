@@ -30,6 +30,9 @@ public interface UserService {
     /** 修改密码 */
     void changePassword(Long userId, String oldPassword, String newPassword);
 
+    /** 管理员重置密码（无需旧密码） */
+    void resetPassword(Long userId, String newPassword);
+
     /** 禁用/启用用户 */
     void updateStatus(Long id, Integer status);
 

@@ -6,8 +6,8 @@
 问题1: MySQL密码错误
 -----------
 现象: 应用启动后所有页面返回500错误，日志显示 Access denied for user 'root'@'localhost'
-原因: MySQL root密码之前为1234，已被改为123456，application.yml中密码未同步更新
-修复: 更新 application.yml、README.md、启动教程.md 中所有密码引用为123456
+原因: application.yml 中 MySQL 密码与数据库实际密码不一致
+修复: 更新 application.yml、README.md、启动教程.md 中 MySQL root 密码为 1234
 
 问题2: fitness数据库不存在
 -----------

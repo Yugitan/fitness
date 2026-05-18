@@ -3,12 +3,14 @@ package com.fitness.controller;
 import com.fitness.common.Result;
 import com.fitness.entity.TrainingRecord;
 import com.fitness.entity.TrainingRecordDetail;
+import com.fitness.entity.User;
 import com.fitness.service.TrainingRecordService;
 import com.fitness.util.DateUtils;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpSession;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -22,18 +24,33 @@ public class TrainingRecordController {
     @Resource
     private TrainingRecordService trainingRecordService;
 
+    /** 从 session 获取当前用户ID（游客返回 null，管理员返回 null 表示可看全部） */
+    private Long getCurrentUserId(HttpSession session) {
+        User loginUser = (User) session.getAttribute("loginUser");
+        if (loginUser == null) return null;
+        // 管理员可查看全部，返回 null 表示不过滤
+        if (loginUser.getRole() != null && loginUser.getRole() >= 1) return null;
+        return loginUser.getId();
+    }
+
     /** 训练记录主页 */
     @GetMapping("/record")
     public String recordPage() {
         return "training/record";
     }
 
-    /** API：查询所有训练记录 */
+    /** API：查询训练记录（普通用户仅看自己的，管理员可看全部） */
     @GetMapping("/api/list")
     @ResponseBody
     public Result list(@RequestParam(required = false) String startDate,
                         @RequestParam(required = false) String endDate,
-                        @RequestParam(required = false) Long userId) {
+                        @RequestParam(required = false) Long userId,
+                        HttpSession session) {
+        Long currentUserId = getCurrentUserId(session);
+        // 普通用户强制只看自己的，管理员 currentUserId=null 看全部
+        if (currentUserId != null) {
+            userId = currentUserId;
+        }
         List<TrainingRecord> records;
         if (startDate != null || endDate != null) {
             LocalDate start = startDate != null ? DateUtils.parseDate(startDate) : null;
@@ -52,10 +69,14 @@ public class TrainingRecordController {
         return Result.success(trainingRecordService.getById(id));
     }
 
-    /** API：新增训练记录 */
+    /** API：新增训练记录（自动绑定当前用户） */
     @PostMapping("/api/create")
     @ResponseBody
-    public Result create(@RequestBody TrainingRecord record) {
+    public Result create(@RequestBody TrainingRecord record, HttpSession session) {
+        Long currentUserId = getCurrentUserId(session);
+        if (currentUserId != null) {
+            record.setUserId(currentUserId);
+        }
         List<TrainingRecordDetail> details = record.getDetails();
         TrainingRecord created = trainingRecordService.create(record, details);
         return Result.success("创建成功", created);

@@ -25,6 +25,11 @@
                 <li class="nav-item"><a class="nav-link" th:href="@{/blogger/list}">博主专区</a></li>
                 <li class="nav-item"><a class="nav-link" th:href="@{/statistics}">数据统计</a></li>
             </ul>
+            <ul class="navbar-nav" id="authNav">
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/login}"><i class="bi bi-person-circle"></i> 登录/注册</a>
+                </li>
+            </ul>
         </div>
     </div>
 </nav>
@@ -127,6 +132,25 @@
 <script>
     let recordDetails = [];
     let editingRecordId = null;
+    let currentUserId = null;
+
+    (async function() {
+        const user = await Auth.current();
+        const authNav = document.getElementById('authNav');
+        if (user) {
+            currentUserId = user.id;
+            authNav.innerHTML = `<li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="bi bi-person-check"></i> ${user.nickname || user.username}</a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><span class="dropdown-item-text text-muted small">${user.role >= 1 ? '管理员' : '普通用户'}</span></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" onclick="Auth.logout()"><i class="bi bi-box-arrow-right"></i> 退出登录</a></li>
+                </ul></li>`;
+        } else {
+            GuestMode.init();
+            if (GuestMode.isLocked()) { window.location.href = CTX + '/'; return; }
+        }
+    })();
 
     // 加载训练记录
     async function loadRecords() {
@@ -136,6 +160,7 @@
         const params = [];
         if (startDate) params.push('startDate=' + startDate);
         if (endDate) params.push('endDate=' + endDate);
+        if (currentUserId) params.push('userId=' + currentUserId);
         if (params.length) url += '?' + params.join('&');
 
         const result = await API.get(url);
@@ -165,7 +190,7 @@
                         <p class="text-muted small mb-1">${record.notes || ''}</p>
                         <div class="d-flex flex-wrap gap-1 mt-2">
                             ${(record.details || []).map(d => `
-                                <span class="badge bg-dark">${d.exerciseName || '动作'} ${d.sets}组x${d.reps}次 ${d.weight ? d.weight+'kg' : ''}</span>
+                                <span class="badge bg-dark">${d.exerciseName || '动作'} ${d.setNumber ?? d.sets ?? 0}组x${d.reps}次 ${d.weight ? d.weight+'kg' : ''}</span>
                             `).join('')}
                         </div>
                     </div>
@@ -267,8 +292,16 @@
             trainDate: document.getElementById('trainDate').value,
             duration: parseInt(document.getElementById('duration').value) || 0,
             notes: document.getElementById('notes').value,
-            details: recordDetails.filter(d => d.exerciseId)
+            details: recordDetails.filter(d => d.exerciseId).map(d => ({
+                exerciseId: d.exerciseId,
+                exerciseName: d.exerciseName,
+                setNumber: d.sets || 3,
+                reps: d.reps || 12,
+                weight: d.weight || null,
+                sortOrder: d.sortOrder || 0
+            }))
         };
+        if (currentUserId) record.userId = currentUserId;
 
         if (!record.trainDate) { Toast.warning('请选择训练日期'); return; }
         if (!record.details.length) { Toast.warning('请添加至少一个训练动作'); return; }

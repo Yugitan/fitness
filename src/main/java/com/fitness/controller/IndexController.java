@@ -58,4 +58,16 @@ public class IndexController {
     public String adminLoginPage() {
         return "admin/login";
     }
+
+    /** 用户登录页面 */
+    @GetMapping("/login")
+    public String loginPage() {
+        return "user/login";
+    }
+
+    /** 用户注册页面 */
+    @GetMapping("/register")
+    public String registerPage() {
+        return "user/register";
+    }
 }

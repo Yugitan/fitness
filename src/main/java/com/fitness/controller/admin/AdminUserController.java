@@ -36,4 +36,18 @@ public class AdminUserController {
         userService.delete(id);
         return Result.success("用户已删除");
     }
+
+    /** 管理员重置用户密码 */
+    @PutMapping("/{id}/password")
+    public Result resetPassword(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
+        userService.resetPassword(id, body.get("password"));
+        return Result.success("密码已重置");
+    }
+
+    /** 管理员手动添加用户 */
+    @PostMapping("/create")
+    public Result create(@RequestBody com.fitness.entity.User user) {
+        userService.register(user);
+        return Result.success("用户创建成功");
+    }
 }

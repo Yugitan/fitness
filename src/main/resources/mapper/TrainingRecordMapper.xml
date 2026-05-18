@@ -59,4 +59,9 @@
         SET is_completed = 1, total_sets = #{totalSets}, total_reps = #{totalReps}
         WHERE id = #{id}
     </update>
+
+    <update id="deleteExpiredGuestRecords">
+        UPDATE training_record SET is_deleted = 1
+        WHERE user_id IS NULL AND is_deleted = 0 AND DATE(create_time) &lt;= #{cutoffDate}
+    </update>
 </mapper>

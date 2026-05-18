@@ -25,6 +25,11 @@
                 <li class="nav-item"><a class="nav-link" th:href="@{/blogger/list}">博主专区</a></li>
                 <li class="nav-item"><a class="nav-link" th:href="@{/statistics}">数据统计</a></li>
             </ul>
+            <ul class="navbar-nav" id="authNav">
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/login}"><i class="bi bi-person-circle"></i> 登录/注册</a>
+                </li>
+            </ul>
         </div>
     </div>
 </nav>
@@ -118,6 +123,27 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script th:src="@{/static/js/common.js}"></script>
 <script>
+    let currentUserId = null;
+
+    (async function() {
+        const user = await Auth.current();
+        const authNav = document.getElementById('authNav');
+        if (user) {
+            currentUserId = user.id;
+            authNav.innerHTML = `<li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="bi bi-person-check"></i> ${user.nickname || user.username}</a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><span class="dropdown-item-text text-muted small">${user.role >= 1 ? '管理员' : '普通用户'}</span></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" onclick="Auth.logout()"><i class="bi bi-box-arrow-right"></i> 退出登录</a></li>
+                </ul></li>`;
+        } else {
+            GuestMode.init();
+            if (GuestMode.isLocked()) { window.location.href = CTX + '/'; return; }
+        }
+    })();
+</script>
+<script>
     let plans = [];
     let groups = [];
     let planDetails = [];
@@ -125,7 +151,9 @@
 
     // 加载分组
     async function loadGroups() {
-        const result = await API.get('/plan/api/groups');
+        let url = '/plan/api/groups';
+        if (currentUserId) url += '?userId=' + currentUserId;
+        const result = await API.get(url);
         if (result.code === 200) {
             groups = result.data || [];
             renderGroupFilter();
@@ -154,8 +182,13 @@
     });
 
     // 加载计划
-    async function loadPlans() {
-        const result = await API.get('/plan/api/list');
+    async function loadPlans(groupId) {
+        let url = '/plan/api/list';
+        const params = [];
+        if (groupId) params.push('groupId=' + groupId);
+        if (currentUserId) params.push('userId=' + currentUserId);
+        if (params.length) url += '?' + params.join('&');
+        const result = await API.get(url);
         if (result.code === 200) {
             plans = result.data || [];
             renderPlans('');

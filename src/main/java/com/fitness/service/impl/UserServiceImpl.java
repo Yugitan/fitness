@@ -28,11 +28,13 @@ public class UserServiceImpl implements UserService {
         }
         // BCrypt加密密码
         user.setPassword(BCryptUtils.encode(user.getPassword()));
-        // 默认普通用户
+        // 默认普通用户，管理员指定时保留
         if (user.getRole() == null) {
             user.setRole(0);
         }
-        user.setStatus(1);
+        if (user.getStatus() == null) {
+            user.setStatus(1);
+        }
         userMapper.insert(user);
         user.setPassword(null); // 不返回密码
         return user;
@@ -94,8 +96,16 @@ public class UserServiceImpl implements UserService {
         if (!BCryptUtils.matches(oldPassword, user.getPassword())) {
             throw new BusinessException("原密码错误");
         }
-        user.setPassword(BCryptUtils.encode(newPassword));
-        userMapper.update(user);
+        userMapper.updatePassword(userId, BCryptUtils.encode(newPassword));
+    }
+
+    @Override
+    public void resetPassword(Long userId, String newPassword) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
+        userMapper.updatePassword(userId, BCryptUtils.encode(newPassword));
     }
 
     @Override

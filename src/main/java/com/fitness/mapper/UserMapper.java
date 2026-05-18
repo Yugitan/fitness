@@ -30,6 +30,9 @@ public interface UserMapper {
     /** 更新用户状态（禁用/启用） */
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 
+    /** 更新用户密码 */
+    int updatePassword(@Param("id") Long id, @Param("password") String password);
+
     /** 逻辑删除用户 */
     int deleteById(@Param("id") Long id);
 }

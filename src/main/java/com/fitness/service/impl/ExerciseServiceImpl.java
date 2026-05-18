@@ -46,6 +46,14 @@ public class ExerciseServiceImpl implements ExerciseService {
     }
 
     @Override
+    public List<Exercise> searchByCategoryAndKeyword(String category, String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return listByCategory(category);
+        }
+        return exerciseMapper.searchByCategoryAndKeyword(category, keyword.trim());
+    }
+
+    @Override
     public Exercise create(Exercise exercise) {
         exerciseMapper.insert(exercise);
         return exercise;

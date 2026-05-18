@@ -26,4 +26,7 @@ public interface TrainingRecordDetailMapper {
 
     /** 更新明细完成状态 */
     int updateCompleted(@Param("id") Long id, @Param("isCompleted") Integer isCompleted);
+
+    /** 清理过期游客数据明细 */
+    int deleteExpiredGuestDetails(@Param("cutoffDate") java.time.LocalDate cutoffDate);
 }

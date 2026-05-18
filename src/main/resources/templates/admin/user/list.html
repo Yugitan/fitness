@@ -1,44 +1,21 @@
 <!DOCTYPE html>
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>用户管理 - Fitness后台</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" th:href="@{/static/css/style.css}">
-    <style>
-        .admin-layout { display: flex; min-height: calc(100vh - 56px); }
-        .admin-main { flex: 1; padding: 1.5rem; background: var(--bg-primary); }
-    </style>
+    <th:block th:replace="~{admin/common/fragments :: head('用户管理')}"></th:block>
 </head>
 <body>
 
-<nav class="navbar navbar-dark sticky-top" style="background:var(--bg-secondary);border-bottom:1px solid var(--border-color);">
-    <div class="container-fluid px-3">
-        <a class="navbar-brand" th:href="@{/admin}"><i class="bi bi-lightning-charge-fill text-orange"></i> Fitness管理后台</a>
-        <div class="d-flex gap-2">
-            <a th:href="@{/}" class="btn btn-outline-secondary btn-sm">前台</a>
-            <button class="btn btn-outline-secondary btn-sm" onclick="logout()">退出</button>
-        </div>
-    </div>
-</nav>
+<th:block th:replace="~{admin/common/fragments :: navbar}"></th:block>
 
 <div class="admin-layout">
-    <div class="admin-sidebar" style="width:220px;flex-shrink:0;">
-        <nav class="nav flex-column">
-            <a class="nav-link sidebar-link" th:href="@{/admin}">仪表盘</a>
-            <a class="nav-link sidebar-link active" th:href="@{/admin/user/list}">用户管理</a>
-            <a class="nav-link sidebar-link" th:href="@{/admin/exercise/list}">动作库管理</a>
-            <a class="nav-link sidebar-link" th:href="@{/admin/plan/list}">计划管理</a>
-            <a class="nav-link sidebar-link" th:href="@{/admin/blogger/list}">博主管理</a>
-            <a class="nav-link sidebar-link" th:href="@{/admin/blogger/plan}">博主计划管理</a>
-            <a class="nav-link sidebar-link" th:href="@{/admin/config}">系统配置</a>
-        </nav>
-    </div>
+    <th:block th:replace="~{admin/common/fragments :: sidebar('user')}"></th:block>
 
     <div class="admin-main">
-        <h4 class="fw-bold mb-4">用户管理</h4>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="fw-bold mb-0">用户管理</h4>
+            <button class="btn btn-primary btn-sm" onclick="openCreateModal()"><i class="bi bi-plus"></i> 添加用户</button>
+        </div>
+
         <div class="card">
             <div class="card-body">
                 <div class="table-responsive">
@@ -55,7 +32,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td colspan="7" class="text-center text-muted py-4">用户管理功能已预留，登录后可查看用户列表</td></tr>
+                            <tr><td colspan="7" class="text-center text-muted py-4">加载中...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -64,8 +41,91 @@
     </div>
 </div>
 
-<script th:src="@{/static/js/common.js}"></script>
+<!-- 添加用户弹窗 -->
+<div class="modal fade" id="createUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>添加用户</h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="createError" class="alert alert-danger" style="display:none;"></div>
+                <div class="mb-3">
+                    <label class="form-label">账号 <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="newUsername" placeholder="4-20位字母数字或下划线" maxlength="20">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">密码 <span class="text-danger">*</span></label>
+                    <input type="password" class="form-control" id="newPassword" placeholder="6-20位密码" maxlength="20">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">昵称</label>
+                    <input type="text" class="form-control" id="newNickname" placeholder="选填" maxlength="30">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">角色</label>
+                    <select class="form-select" id="newRole">
+                        <option value="0">普通用户</option>
+                        <option value="1">管理员</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">状态</label>
+                    <select class="form-select" id="newStatus">
+                        <option value="1">正常</option>
+                        <option value="0">禁用</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button class="btn btn-primary" onclick="createUser()">确认添加</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 修改密码弹窗 -->
+<div class="modal fade" id="pwdModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-key me-2"></i>修改密码</h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="pwdError" class="alert alert-danger" style="display:none;"></div>
+                <input type="hidden" id="pwdUserId">
+                <div class="mb-3">
+                    <label class="form-label">用户</label>
+                    <input type="text" class="form-control" id="pwdUsername" disabled>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">新密码 <span class="text-danger">*</span></label>
+                    <input type="password" class="form-control" id="newPassword2" placeholder="6-20位新密码" maxlength="20">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button class="btn btn-primary" onclick="changePassword()">确认修改</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<th:block th:replace="~{admin/common/fragments :: scripts}"></th:block>
 <script>
+    let createModal;
+    let pwdModal;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        createModal = new bootstrap.Modal(document.getElementById('createUserModal'));
+        pwdModal = new bootstrap.Modal(document.getElementById('pwdModal'));
+        loadUsers();
+    });
+
     async function loadUsers() {
         const result = await API.get('/admin/api/user/list');
         if (result.code === 200 && result.data) {
@@ -80,10 +140,45 @@
                     <td>${u.createTime || '-'}</td>
                     <td>
                         <button class="btn btn-sm btn-outline-warning" onclick="toggleStatus(${u.id}, ${u.status})">${u.status === 1 ? '禁用' : '启用'}</button>
+                        <button class="btn btn-sm btn-outline-info" onclick="openPwdModal(${u.id}, '${u.username}')">修改密码</button>
                         <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${u.id})">删除</button>
                     </td>
                 </tr>
             `).join('');
+        }
+    }
+
+    function openCreateModal() {
+        document.getElementById('createError').style.display = 'none';
+        ['newUsername','newPassword','newNickname'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('newRole').value = '0';
+        document.getElementById('newStatus').value = '1';
+        createModal.show();
+    }
+
+    async function createUser() {
+        const username = document.getElementById('newUsername').value.trim();
+        const password = document.getElementById('newPassword').value;
+        const nickname = document.getElementById('newNickname').value.trim();
+        const role = parseInt(document.getElementById('newRole').value);
+        const status = parseInt(document.getElementById('newStatus').value);
+        const errorEl = document.getElementById('createError');
+
+        if (!username || !/^[a-zA-Z0-9_]{4,20}$/.test(username)) { errorEl.style.display='block'; errorEl.textContent='账号格式不正确（4-20位字母数字或下划线）'; return; }
+        if (!password || password.length < 6) { errorEl.style.display='block'; errorEl.textContent='密码至少6位'; return; }
+        errorEl.style.display = 'none';
+
+        const data = { username, password, role, status };
+        if (nickname) data.nickname = nickname;
+
+        const result = await API.post('/admin/api/user/create', data);
+        if (result.code === 200) {
+            Toast.success('用户创建成功');
+            createModal.hide();
+            loadUsers();
+        } else {
+            errorEl.style.display = 'block';
+            errorEl.textContent = result.message || '创建失败';
         }
     }
 
@@ -101,9 +196,35 @@
         else Toast.error(result.message);
     }
 
-    function logout() { API.post('/admin/logout').then(() => location.href = CTX + '/admin/login/page'); }
+    function openPwdModal(id, username) {
+        document.getElementById('pwdError').style.display = 'none';
+        document.getElementById('pwdUserId').value = id;
+        document.getElementById('pwdUsername').value = username;
+        document.getElementById('newPassword2').value = '';
+        pwdModal.show();
+    }
 
-    loadUsers();
+    async function changePassword() {
+        const userId = document.getElementById('pwdUserId').value;
+        const newPassword = document.getElementById('newPassword2').value;
+        const errorEl = document.getElementById('pwdError');
+
+        if (!newPassword || newPassword.length < 6) {
+            errorEl.style.display = 'block';
+            errorEl.textContent = '新密码至少6位';
+            return;
+        }
+        errorEl.style.display = 'none';
+
+        const result = await API.put(`/admin/api/user/${userId}/password`, { password: newPassword });
+        if (result.code === 200) {
+            Toast.success('密码修改成功');
+            pwdModal.hide();
+        } else {
+            errorEl.style.display = 'block';
+            errorEl.textContent = result.message || '修改失败';
+        }
+    }
 </script>
 </body>
 </html>

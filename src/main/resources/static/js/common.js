@@ -101,6 +101,124 @@ const DateUtil = {
     }
 };
 
+// ========== 用户认证（登录状态管理） ==========
+const Auth = {
+    _user: null,
+    _checked: false,
+
+    async check() {
+        try {
+            const result = await API.get('/user/api/current');
+            if (result.code === 200 && result.data) {
+                this._user = result.data;
+                this._checked = true;
+                return this._user;
+            }
+        } catch(e) { /* 未登录 */ }
+        this._user = null;
+        this._checked = true;
+        return null;
+    },
+
+    async current() {
+        if (!this._checked) await this.check();
+        return this._user;
+    },
+
+    isLoggedIn() {
+        return this._user !== null;
+    },
+
+    async logout() {
+        await API.post('/user/api/logout');
+        this._user = null;
+        this._checked = false;
+        GuestMode.reset();
+        window.location.href = CTX + '/';
+    }
+};
+
+// ========== 游客模式 ==========
+const GuestMode = {
+    MAX_DAYS: 7,
+    // 测试模式：设为 true 时使用30秒倒计时（改回 false 恢复7天）
+    TEST_MODE: false,
+    TEST_SECONDS: 30,
+    STORE_KEY: 'guest_data',
+
+    _data() {
+        return LocalStore.get(this.STORE_KEY, { firstVisit: null, lastVisit: null, todayShown: false, firstVisitTime: null });
+    },
+
+    _save(data) {
+        LocalStore.set(this.STORE_KEY, data);
+    },
+
+    init() {
+        const data = this._data();
+        const now = new Date();
+        const today = DateUtil.today();
+
+        if (!data.firstVisit) {
+            data.firstVisit = today;
+        }
+        if (!data.firstVisitTime) {
+            data.firstVisitTime = now.getTime();
+        }
+
+        // 检查是否新的一天
+        if (data.lastVisit !== today) {
+            data.todayShown = false;
+            data.lastVisit = today;
+        }
+
+        this._save(data);
+    },
+
+    _elapsedSeconds() {
+        const data = this._data();
+        if (!data.firstVisitTime) return 0;
+        return Math.floor((Date.now() - data.firstVisitTime) / 1000);
+    },
+
+    getDaysUsed() {
+        if (this.TEST_MODE) {
+            return Math.floor(this._elapsedSeconds() / this.TEST_SECONDS * this.MAX_DAYS);
+        }
+        const data = this._data();
+        if (!data.firstVisit) return 0;
+        const first = new Date(data.firstVisit);
+        const now = new Date();
+        return Math.floor((now - first) / (1000 * 60 * 60 * 24)) + 1;
+    },
+
+    getDaysRemaining() {
+        return Math.max(0, this.MAX_DAYS - this.getDaysUsed());
+    },
+
+    isLocked() {
+        if (this.TEST_MODE) {
+            return this._elapsedSeconds() >= this.TEST_SECONDS;
+        }
+        return this.getDaysUsed() > this.MAX_DAYS;
+    },
+
+    shouldShowPopup() {
+        const data = this._data();
+        return !data.todayShown;
+    },
+
+    markPopupShown() {
+        const data = this._data();
+        data.todayShown = true;
+        this._save(data);
+    },
+
+    reset() {
+        LocalStore.remove(this.STORE_KEY);
+    }
+};
+
 // ========== LocalStorage 操作（游客模式） ==========
 const LocalStore = {
     set(key, value) {

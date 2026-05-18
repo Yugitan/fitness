@@ -21,6 +21,9 @@ public interface ExerciseService {
     /** 关键词模糊搜索动作 */
     List<Exercise> search(String keyword);
 
+    /** 分类+关键词组合搜索 */
+    List<Exercise> searchByCategoryAndKeyword(String category, String keyword);
+
     /** 新增动作 */
     Exercise create(Exercise exercise);
 

@@ -4,12 +4,14 @@ import com.fitness.common.Result;
 import com.fitness.entity.Plan;
 import com.fitness.entity.PlanDetail;
 import com.fitness.entity.PlanGroup;
+import com.fitness.entity.User;
 import com.fitness.service.PlanService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpSession;
 import java.util.List;
 
 /**
@@ -22,10 +24,18 @@ public class PlanController {
     @Resource
     private PlanService planService;
 
+    /** 从 session 获取当前用户ID（管理员返回 null 表示可看全部） */
+    private Long getCurrentUserId(HttpSession session) {
+        User loginUser = (User) session.getAttribute("loginUser");
+        if (loginUser == null) return null;
+        if (loginUser.getRole() != null && loginUser.getRole() >= 1) return null;
+        return loginUser.getId();
+    }
+
     /** 计划创建/编辑页面 */
     @GetMapping("/create")
-    public String createPage(Model model) {
-        model.addAttribute("groups", planService.listGroups(null));
+    public String createPage(Model model, HttpSession session) {
+        model.addAttribute("groups", planService.listGroups(getCurrentUserId(session)));
         return "plan/create";
     }
 
@@ -36,11 +46,16 @@ public class PlanController {
         return "plan/detail";
     }
 
-    /** API：查询所有计划 */
+    /** API：查询计划（普通用户仅看自己的，管理员可看全部） */
     @GetMapping("/api/list")
     @ResponseBody
     public Result list(@RequestParam(required = false) Long groupId,
-                        @RequestParam(required = false) Long userId) {
+                        @RequestParam(required = false) Long userId,
+                        HttpSession session) {
+        Long currentUserId = getCurrentUserId(session);
+        if (currentUserId != null) {
+            userId = currentUserId;
+        }
         List<Plan> plans;
         if (groupId != null) {
             plans = planService.listByGroupId(groupId, userId);
@@ -57,10 +72,14 @@ public class PlanController {
         return Result.success(planService.getById(id));
     }
 
-    /** API：创建计划 */
+    /** API：创建计划（自动绑定当前用户） */
     @PostMapping("/api/create")
     @ResponseBody
-    public Result create(@RequestBody Plan plan) {
+    public Result create(@RequestBody Plan plan, HttpSession session) {
+        Long currentUserId = getCurrentUserId(session);
+        if (currentUserId != null) {
+            plan.setUserId(currentUserId);
+        }
         List<PlanDetail> details = plan.getDetails();
         Plan created = planService.create(plan, details);
         return Result.success("创建成功", created);
@@ -101,17 +120,25 @@ public class PlanController {
 
     // ===== 分组管理 =====
 
-    /** API：查询所有分组 */
+    /** API：查询分组（普通用户仅看自己的） */
     @GetMapping("/api/groups")
     @ResponseBody
-    public Result listGroups(@RequestParam(required = false) Long userId) {
+    public Result listGroups(@RequestParam(required = false) Long userId, HttpSession session) {
+        Long currentUserId = getCurrentUserId(session);
+        if (currentUserId != null) {
+            userId = currentUserId;
+        }
         return Result.success(planService.listGroups(userId));
     }
 
-    /** API：创建分组 */
+    /** API：创建分组（自动绑定当前用户） */
     @PostMapping("/api/group/create")
     @ResponseBody
-    public Result createGroup(@RequestBody PlanGroup group) {
+    public Result createGroup(@RequestBody PlanGroup group, HttpSession session) {
+        Long currentUserId = getCurrentUserId(session);
+        if (currentUserId != null) {
+            group.setUserId(currentUserId);
+        }
         PlanGroup created = planService.createGroup(group);
         return Result.success("分组创建成功", created);
     }

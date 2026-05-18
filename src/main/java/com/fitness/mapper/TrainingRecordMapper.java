@@ -35,4 +35,7 @@ public interface TrainingRecordMapper {
     /** 标记训练完成 */
     int markCompleted(@Param("id") Long id, @Param("totalSets") Integer totalSets,
                       @Param("totalReps") Integer totalReps);
+
+    /** 清理过期游客数据（userId为NULL且创建时间早于指定日期） */
+    int deleteExpiredGuestRecords(@Param("cutoffDate") LocalDate cutoffDate);
 }
