@@ -44,6 +44,12 @@
                placeholder="搜索动作名称、训练要点...">
     </div>
 
+    <!-- 待训练列表提示 -->
+    <div class="alert alert-primary d-flex align-items-center justify-content-between mb-3 py-2 px-3" id="pendingBar" style="display:none !important">
+        <span><i class="bi bi-inbox-fill me-2"></i>待训练列表: <strong id="pendingCount">0</strong> 个动作</span>
+        <a href="#" class="btn btn-sm btn-primary" onclick="event.preventDefault(); window.location.href=CTX+'/training'">去训练 <i class="bi bi-arrow-right"></i></a>
+    </div>
+
     <!-- 分类筛选 -->
     <div class="category-filter mb-3" id="categoryFilter">
         <button class="filter-btn active" data-category="">全部</button>
@@ -83,6 +89,7 @@
                     <li><a class="dropdown-item" href="#" onclick="Auth.logout()"><i class="bi bi-box-arrow-right"></i> 退出登录</a></li>
                 </ul></li>`;
         } else {
+            isGuest = true;
             GuestMode.init();
             if (GuestMode.isLocked()) { window.location.href = CTX + '/'; return; }
         }
@@ -92,6 +99,7 @@
     let allExercises = [];
     let currentCategory = '';
     let currentKeyword = '';
+    let isGuest = false;
 
     // 分类按钮切换
     document.getElementById('categoryFilter').addEventListener('click', function(e) {
@@ -136,22 +144,22 @@
             return;
         }
 
-        container.innerHTML = allExercises.map(ex => `
-            <div class="col-6 col-md-4 col-lg-3">
-                <div class="card exercise-card h-100" onclick="location.href = CTX + '/exercise/${ex.id}'">
-                    <div class="card-body">
-                        <span class="badge category-badge badge-${getCategoryClass(ex.category)}"><i class="cat-icon ${getCategoryClass(ex.category)}"></i>${ex.category}</span>
-                        <h5 class="mt-4">${escapeHtml(ex.name)}</h5>
-                        <p class="text-muted small mb-2">${escapeHtml(truncateText(ex.description, 50))}</p>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-primary btn-sm flex-grow-1" onclick="event.stopPropagation(); addToTraining(${ex.id}, '${escapeHtml(ex.name)}')">
-                                <i class="bi bi-plus-lg"></i> 加入训练
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `).join('');
+        var trainBtnHtml = isGuest ? '' : '<div class="d-flex gap-2"><button class="btn btn-primary btn-sm flex-grow-1" onclick="event.stopPropagation(); addToTraining(';
+        var trainBtnSuffix = ')"><i class="bi bi-plus-lg"></i> 加入训练</button></div>';
+
+        container.innerHTML = allExercises.map(function(ex) {
+            var html = '<div class="col-6 col-md-4 col-lg-3">' +
+                '<div class="card exercise-card h-100" onclick="location.href = CTX + \'/exercise/' + ex.id + '\'">' +
+                '<div class="card-body">' +
+                '<span class="badge category-badge badge-' + getCategoryClass(ex.category) + '"><i class="cat-icon ' + getCategoryClass(ex.category) + '"></i>' + ex.category + '</span>' +
+                '<h5 class="mt-4">' + escapeHtml(ex.name) + '</h5>' +
+                '<p class="text-muted small mb-2">' + escapeHtml(truncateText(ex.description, 50)) + '</p>';
+            if (!isGuest) {
+                html += '<div class="d-flex gap-2"><button class="btn btn-primary btn-sm flex-grow-1" onclick="event.stopPropagation(); addToTraining(' + ex.id + ', \'' + escapeHtml(ex.name).replace(/'/g, "\\'") + '\', \'' + (ex.category || '').replace(/'/g, "\\'") + '\')"><i class="bi bi-plus-lg"></i> 加入训练</button></div>';
+            }
+            html += '</div></div></div>';
+            return html;
+        }).join('');
     }
 
     function getCategoryClass(cat) {
@@ -171,14 +179,29 @@
         return text.length > len ? text.substring(0, len) + '...' : text;
     }
 
-    function addToTraining(id, name) {
+    function addToTraining(id, name, category) {
         let trainingList = LocalStore.get('trainingList', []);
         if (!trainingList.find(t => t.exerciseId === id)) {
-            trainingList.push({ exerciseId: id, exerciseName: name, sets: 3, reps: 12, weight: 0 });
+            trainingList.push({ exerciseId: id, exerciseName: name, exerciseCategory: category || '', bodyPart: category || '', sets: 3, reps: 12, weight: null, restSeconds: 60 });
             LocalStore.set('trainingList', trainingList);
             Toast.success('已添加到今日训练列表');
+            updatePendingBar();
         } else {
             Toast.warning('该动作已在训练列表中');
+        }
+    }
+
+    function updatePendingBar() {
+        if (isGuest) return;
+        var list = LocalStore.get('trainingList', []);
+        var bar = document.getElementById('pendingBar');
+        if (list.length > 0) {
+            bar.style.display = 'flex !important';
+            bar.setAttribute('style', 'display:flex !important');
+            document.getElementById('pendingCount').textContent = list.length;
+        } else {
+            bar.style.display = 'none !important';
+            bar.setAttribute('style', 'display:none !important');
         }
     }
 
@@ -198,6 +221,7 @@
 
     // 初始加载
     loadExercises();
+    updatePendingBar();
 </script>
 </body>
 </html>

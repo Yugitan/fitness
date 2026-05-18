@@ -25,49 +25,48 @@ public class IndexController {
     public String index(Model model) {
         model.addAttribute("exercises", exerciseService.listAll());
         model.addAttribute("bloggers", bloggerService.listRecommended());
-        return "index";
+        return "forward:/index.html";
     }
 
     /** 动作库页面 */
     @GetMapping("/exercise")
     public String exercisePage(Model model) {
-        model.addAttribute("exercises", exerciseService.listAll());
-        return "exercise/list";
+        return "redirect:/exercise/";
     }
 
     /** 训练记录页面 */
     @GetMapping("/training")
     public String trainingPage() {
-        return "training/record";
+        return "redirect:/training/";
     }
 
     /** 训练计划页面 */
     @GetMapping("/plan")
     public String planPage() {
-        return "plan/list";
+        return "redirect:/plan/";
     }
 
-    /** 博主列表页面（预留） */
+    /** 博主列表页面 */
     @GetMapping("/blogger")
     public String bloggerPage() {
-        return "blogger/list";
+        return "redirect:/blogger/";
     }
 
-    /** 管理员后台入口（预留） */
+    /** 管理员后台入口 */
     @GetMapping("/admin/login/page")
     public String adminLoginPage() {
-        return "admin/login";
+        return "redirect:/admin/login/";
     }
 
     /** 用户登录页面 */
     @GetMapping("/login")
     public String loginPage() {
-        return "user/login";
+        return "redirect:/login/";
     }
 
     /** 用户注册页面 */
     @GetMapping("/register")
     public String registerPage() {
-        return "user/register";
+        return "redirect:/register/";
     }
 }

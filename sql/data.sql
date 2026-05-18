@@ -10,7 +10,32 @@ USE fitness;
 -- 用户名: admin  密码: 123456 (BCrypt加密)
 -- ============================================================
 INSERT INTO user (username, password, nickname, role, status) VALUES
-('admin', '$2a$10$.vQCZ3G.e7t0hqr/gL/gVuNgtnkPaJB8TyPKc8MV5/FAoWcA10cmO', '系统管理员', 1, 1);
+('admin', '$2a$10$.vQCZ3G.e7t0hqr/gL/gVuNgtnkPaJB8TyPKc8MV5/FAoWcA10cmO', '系统管理员', 1, 1),
+('test',  '$2a$10$.vQCZ3G.e7t0hqr/gL/gVuNgtnkPaJB8TyPKc8MV5/FAoWcA10cmO', '测试用户', 0, 1);
+
+-- 测试用户训练记录（用户ID=2 test）
+INSERT INTO training_record (user_id, train_date, duration, total_sets, total_reps, difficulty, is_completed, notes, create_time, update_time) VALUES
+(2, '2026-05-16', 60, 15, 160, 1, 1, '今天第一次训练，感觉很棒', NOW(), NOW());
+SET @test_record_id = LAST_INSERT_ID();
+INSERT INTO training_record_detail (record_id, exercise_id, set_number, reps, weight, is_completed, sort_order, create_time, update_time) VALUES
+(@test_record_id, 1, 1, 12, 40.0, 1, 1, NOW(), NOW()),
+(@test_record_id, 1, 2, 10, 45.0, 1, 2, NOW(), NOW()),
+(@test_record_id, 1, 3,  8, 50.0, 1, 3, NOW(), NOW()),
+(@test_record_id, 2, 1, 12, 15.0, 1, 4, NOW(), NOW()),
+(@test_record_id, 2, 2, 10, 17.5, 1, 5, NOW(), NOW()),
+(@test_record_id, 5, 1, 15,  0.0, 1, 6, NOW(), NOW()),
+(@test_record_id, 5, 2, 12,  0.0, 1, 7, NOW(), NOW());
+
+-- 测试用户训练计划
+INSERT INTO plan (user_id, group_id, title, description, target_body_part, difficulty_level, train_days, is_public, create_time, update_time) VALUES
+(2, 1, '测试用户入门计划', '刚开始健身，从基础动作开始', '全身', 1, 3, 1, NOW(), NOW());
+SET @test_plan_id = LAST_INSERT_ID();
+INSERT INTO plan_detail (plan_id, exercise_id, day_number, sets, reps, weight, rest_seconds, sort_order, create_time, update_time) VALUES
+(@test_plan_id, 5,  1, 3, 12,  0.0, 60, 1, NOW(), NOW()),
+(@test_plan_id, 18, 1, 3, 30,  0.0, 90, 2, NOW(), NOW()),
+(@test_plan_id, 12, 2, 3, 12,  5.0, 60, 3, NOW(), NOW()),
+(@test_plan_id, 17, 2, 3, 15, 10.0, 60, 4, NOW(), NOW()),
+(@test_plan_id, 20, 3, 3, 10, 30.0, 90, 5, NOW(), NOW());
 
 -- ============================================================
 -- 二、健身动作测试数据 (至少20个)
@@ -196,3 +221,119 @@ INSERT INTO system_config (config_key, config_value, config_desc) VALUES
 ('site_logo', '/static/images/logo.png', '网站Logo路径'),
 ('site_icp', '© 2025 Fitness健身记录', '页脚备案信息'),
 ('site_description', '个人健身训练记录与管理平台', '网站描述');
+
+-- ============================================================
+-- 五、管理员训练记录（用户ID=1 admin，用于测试数据加载）
+-- ============================================================
+
+-- 训练记录1：胸部训练
+INSERT INTO training_record (user_id, train_date, duration, total_sets, total_reps, difficulty, is_completed, notes, create_time, update_time) VALUES
+(1, '2026-05-17', 75, 20, 240, 2, 1, '今天胸部状态不错，卧推又有突破', NOW(), NOW());
+SET @record1_id = LAST_INSERT_ID();
+INSERT INTO training_record_detail (record_id, exercise_id, set_number, reps, weight, is_completed, sort_order, create_time, update_time) VALUES
+(@record1_id, 1,  1, 12,  60.0, 1, 1, NOW(), NOW()),
+(@record1_id, 1,  2, 10,  70.0, 1, 2, NOW(), NOW()),
+(@record1_id, 1,  3,  8,  80.0, 1, 3, NOW(), NOW()),
+(@record1_id, 1,  4,  6,  85.0, 1, 4, NOW(), NOW()),
+(@record1_id, 2,  1, 12,  25.0, 1, 5, NOW(), NOW()),
+(@record1_id, 2,  2, 10,  27.5, 1, 6, NOW(), NOW()),
+(@record1_id, 2,  3, 10,  27.5, 1, 7, NOW(), NOW()),
+(@record1_id, 3,  1, 15,  12.5, 1, 8, NOW(), NOW()),
+(@record1_id, 3,  2, 12,  15.0, 1, 9, NOW(), NOW()),
+(@record1_id, 3,  3, 12,  15.0, 1, 10, NOW(), NOW());
+
+-- 训练记录2：背部训练
+INSERT INTO training_record (user_id, train_date, duration, total_sets, total_reps, difficulty, is_completed, notes, create_time, update_time) VALUES
+(1, '2026-05-15', 70, 18, 180, 3, 1, '引体向上每组都能完成，进步明显', NOW(), NOW());
+SET @record2_id = LAST_INSERT_ID();
+INSERT INTO training_record_detail (record_id, exercise_id, set_number, reps, weight, is_completed, sort_order, create_time, update_time) VALUES
+(@record2_id, 6,  1, 10,   0.0, 1, 1, NOW(), NOW()),
+(@record2_id, 6,  2, 10,   0.0, 1, 2, NOW(), NOW()),
+(@record2_id, 6,  3,  8,   0.0, 1, 3, NOW(), NOW()),
+(@record2_id, 7,  1, 10,  60.0, 1, 4, NOW(), NOW()),
+(@record2_id, 7,  2, 10,  65.0, 1, 5, NOW(), NOW()),
+(@record2_id, 7,  3,  8,  70.0, 1, 6, NOW(), NOW()),
+(@record2_id, 7,  4,  8,  70.0, 1, 7, NOW(), NOW()),
+(@record2_id, 8,  1, 12,  55.0, 1, 8, NOW(), NOW()),
+(@record2_id, 8,  2, 12,  55.0, 1, 9, NOW(), NOW()),
+(@record2_id, 8,  3, 10,  60.0, 1, 10, NOW(), NOW());
+
+-- 训练记录3：腿部训练
+INSERT INTO training_record (user_id, train_date, duration, total_sets, total_reps, difficulty, is_completed, is_deleted, notes, create_time, update_time) VALUES
+(1, '2026-05-13', 65, 16, 160, 2, 1, 0, '深蹲加了5kg，最后一组有点吃力', NOW(), NOW());
+SET @record3_id = LAST_INSERT_ID();
+INSERT INTO training_record_detail (record_id, exercise_id, set_number, reps, weight, is_completed, sort_order, create_time, update_time) VALUES
+(@record3_id, 20,  1, 12,  80.0, 1, 1, NOW(), NOW()),
+(@record3_id, 20,  2, 10,  90.0, 1, 2, NOW(), NOW()),
+(@record3_id, 20,  3,  8, 100.0, 1, 3, NOW(), NOW()),
+(@record3_id, 20,  4,  8, 100.0, 1, 4, NOW(), NOW()),
+(@record3_id, 21,  1, 10,  80.0, 1, 5, NOW(), NOW()),
+(@record3_id, 21,  2,  8,  90.0, 1, 6, NOW(), NOW()),
+(@record3_id, 21,  3,  6, 100.0, 1, 7, NOW(), NOW()),
+(@record3_id, 22,  1, 15, 150.0, 1, 8, NOW(), NOW()),
+(@record3_id, 22,  2, 12, 170.0, 1, 9, NOW(), NOW()),
+(@record3_id, 22,  3, 10, 190.0, 1, 10, NOW(), NOW());
+
+-- 训练记录4：未完成的手臂训练
+INSERT INTO training_record (user_id, train_date, duration, total_sets, total_reps, difficulty, is_completed, notes, create_time, update_time) VALUES
+(1, '2026-05-18', 45, 0, 0, 1, 0, '今天刚开始练手臂，先做弯举热身', NOW(), NOW());
+SET @record4_id = LAST_INSERT_ID();
+INSERT INTO training_record_detail (record_id, exercise_id, set_number, reps, weight, is_completed, sort_order, create_time, update_time) VALUES
+(@record4_id, 15,  1, 15,  20.0, 0, 1, NOW(), NOW()),
+(@record4_id, 15,  2, 12,  22.5, 0, 2, NOW(), NOW()),
+(@record4_id, 15,  3, 10,  25.0, 0, 3, NOW(), NOW()),
+(@record4_id, 16,  1, 12,  12.5, 0, 4, NOW(), NOW()),
+(@record4_id, 16,  2, 10,  15.0, 0, 5, NOW(), NOW()),
+(@record4_id, 17,  1, 15,  15.0, 0, 6, NOW(), NOW()),
+(@record4_id, 17,  2, 12,  17.5, 0, 7, NOW(), NOW()),
+(@record4_id, 17,  3, 12,  17.5, 0, 8, NOW(), NOW());
+
+-- ============================================================
+-- 六、管理员训练计划（用户ID=1 admin）
+-- ============================================================
+
+-- 计划1：胸部增肌计划
+INSERT INTO plan (user_id, group_id, title, description, target_body_part, difficulty_level, train_days, is_public, create_time, update_time) VALUES
+(1, 2, '胸部增肌强化计划', '针对胸大肌的增肌训练，包含上中下胸全方位刺激，每周2次', '胸部', 2, 3, 1, NOW(), NOW());
+SET @plan1_id = LAST_INSERT_ID();
+INSERT INTO plan_detail (plan_id, exercise_id, day_number, sets, reps, weight, rest_seconds, sort_order, create_time, update_time) VALUES
+(@plan1_id, 1,  1, 4, 10, 60.0, 90, 1, NOW(), NOW()),
+(@plan1_id, 2,  1, 3, 12, 25.0, 90, 2, NOW(), NOW()),
+(@plan1_id, 3,  1, 3, 15, 12.5, 60, 3, NOW(), NOW()),
+(@plan1_id, 4,  1, 3, 12, 20.0, 60, 4, NOW(), NOW()),
+(@plan1_id, 1,  2, 4,  8, 65.0, 90, 5, NOW(), NOW()),
+(@plan1_id, 2,  2, 3, 10, 27.5, 90, 6, NOW(), NOW()),
+(@plan1_id, 3,  2, 4, 12, 15.0, 60, 7, NOW(), NOW()),
+(@plan1_id, 1,  3, 4,  8, 70.0, 90, 8, NOW(), NOW()),
+(@plan1_id, 4,  3, 3, 12, 22.5, 60, 9, NOW(), NOW());
+
+-- 计划2：背部增肌计划
+INSERT INTO plan (user_id, group_id, title, description, target_body_part, difficulty_level, train_days, is_public, create_time, update_time) VALUES
+(1, 2, '背部宽度与厚度训练', '引体向上+划船组合，打造V型背部', '背部', 3, 3, 1, NOW(), NOW());
+SET @plan2_id = LAST_INSERT_ID();
+INSERT INTO plan_detail (plan_id, exercise_id, day_number, sets, reps, weight, rest_seconds, sort_order, create_time, update_time) VALUES
+(@plan2_id, 6,  1, 4,  8,  0.0, 120, 1, NOW(), NOW()),
+(@plan2_id, 7,  1, 4, 10, 60.0, 120, 2, NOW(), NOW()),
+(@plan2_id, 8,  1, 4, 12, 55.0,  90, 3, NOW(), NOW()),
+(@plan2_id, 9,  1, 3, 12, 45.0,  90, 4, NOW(), NOW()),
+(@plan2_id, 6,  2, 4, 10,  0.0, 120, 5, NOW(), NOW()),
+(@plan2_id, 7,  2, 4,  8, 65.0, 120, 6, NOW(), NOW()),
+(@plan2_id, 10, 2, 4, 12, 25.0,  90, 7, NOW(), NOW()),
+(@plan2_id, 8,  3, 4, 10, 60.0,  90, 8, NOW(), NOW()),
+(@plan2_id, 9,  3, 4, 12, 50.0,  90, 9, NOW(), NOW());
+
+-- 计划3：新手入门全身计划
+INSERT INTO plan (user_id, group_id, title, description, target_body_part, difficulty_level, train_days, is_public, create_time, update_time) VALUES
+(1, 1, '新手全身入门计划', '适合初学者的全身训练，每周3次，每动作3组', '全身', 1, 3, 1, NOW(), NOW());
+SET @plan3_id = LAST_INSERT_ID();
+INSERT INTO plan_detail (plan_id, exercise_id, day_number, sets, reps, weight, rest_seconds, sort_order, create_time, update_time) VALUES
+(@plan3_id, 5,  1, 3, 15,  0.0, 60, 1, NOW(), NOW()),
+(@plan3_id, 23, 1, 3, 12, 40.0, 90, 2, NOW(), NOW()),
+(@plan3_id, 12, 1, 3, 12,  7.5, 60, 3, NOW(), NOW()),
+(@plan3_id, 8,  1, 3, 12, 35.0, 60, 4, NOW(), NOW()),
+(@plan3_id, 18, 2, 3, 45,  0.0, 90, 5, NOW(), NOW()),
+(@plan3_id, 9,  2, 3, 12, 15.0, 60, 6, NOW(), NOW()),
+(@plan3_id, 15, 2, 3, 12, 15.0, 60, 7, NOW(), NOW()),
+(@plan3_id, 20, 3, 3, 12, 50.0, 90, 8, NOW(), NOW()),
+(@plan3_id, 14, 3, 3, 12,  5.0, 60, 9, NOW(), NOW()),
+(@plan3_id, 17, 3, 3, 15, 12.5, 60, 10, NOW(), NOW());

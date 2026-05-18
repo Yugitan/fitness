@@ -37,9 +37,17 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3 class="fw-bold mb-0">训练计划模板</h3>
-        <button class="btn btn-primary" onclick="openCreatePlan()">
+        <button class="btn btn-primary" onclick="openCreatePlan()" id="btnCreatePlan">
             <i class="bi bi-plus-lg"></i> 创建计划
         </button>
+    </div>
+
+    <!-- 游客提示 -->
+    <div id="guestNotice" class="card text-center p-5" style="display:none">
+        <i class="bi bi-lock-fill fs-1 text-muted"></i>
+        <h5 class="mt-2">请登录后查看训练计划</h5>
+        <p class="text-muted">登录后可以创建、管理和套用个人训练计划</p>
+        <div><a class="btn btn-primary" th:href="@{/login}"><i class="bi bi-box-arrow-in-right"></i> 去登录</a></div>
     </div>
 
     <!-- 分组筛选 -->
@@ -97,13 +105,60 @@
                     </div>
                 </div>
 
-                <!-- 计划明细 -->
+                <!-- 训练内容 -->
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="fw-bold mb-0">训练内容</h6>
-                    <button class="btn btn-outline-primary btn-sm" onclick="addPlanDetail()">
-                        <i class="bi bi-plus"></i> 添加动作
-                    </button>
+                    <h6 class="fw-bold mb-0">训练内容 <span class="text-muted small fw-normal" id="detailCount"></span></h6>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-outline-primary btn-sm" id="btnSearchPlan" type="button">
+                            <i class="bi bi-search"></i> 搜索动作
+                        </button>
+                        <button class="btn btn-outline-warning btn-sm" id="btnCustomPlan" type="button">
+                            <i class="bi bi-pencil-square"></i> 自定义动作
+                        </button>
+                    </div>
                 </div>
+
+                <!-- 搜索面板 -->
+                <div id="planSearchPanel" style="display:none">
+                    <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="planSearchInput" placeholder="输入关键词搜索动作库...">
+                    </div>
+                    <div id="planSearchResults" class="list-group list-group-flush mb-2" style="max-height:200px;overflow-y:auto"></div>
+                </div>
+
+                <!-- 自定义动作表单 -->
+                <div id="planCustomForm" class="card card-body bg-dark border-secondary p-2 mb-2" style="display:none">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <input type="text" class="form-control form-control-sm" id="planCustomName" placeholder="动作名称*">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" class="form-control form-control-sm" id="planCustomPart" placeholder="训练部位">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" class="form-control form-control-sm" id="planCustomCat" placeholder="分类(胸/背/肩/手臂/腿/核心)">
+                        </div>
+                        <div class="col-md-2">
+                            <input type="number" class="form-control form-control-sm" id="planCustomSets" value="3" min="1" placeholder="组数">
+                        </div>
+                        <div class="col-md-2">
+                            <input type="number" class="form-control form-control-sm" id="planCustomReps" value="12" min="1" placeholder="次数">
+                        </div>
+                        <div class="col-md-2">
+                            <input type="number" class="form-control form-control-sm" id="planCustomWeight" value="" step="0.5" placeholder="重量(kg)">
+                        </div>
+                        <div class="col-md-2">
+                            <input type="number" class="form-control form-control-sm" id="planCustomRest" value="60" min="0" placeholder="休息(s)">
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button class="btn btn-primary btn-sm w-100" onclick="addPlanCustomEx()">
+                                <i class="bi bi-check-lg"></i> 添加自定义动作
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="planDetailContainer"></div>
             </div>
             <div class="modal-footer border-secondary">
@@ -123,261 +178,398 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script th:src="@{/static/js/common.js}"></script>
 <script>
-    let currentUserId = null;
+var plans = [];
+var groups = [];
+var planDetails = [];
+var editingPlanId = null;
+var currentUserId = null;
+var isGuest = false;
 
-    (async function() {
-        const user = await Auth.current();
-        const authNav = document.getElementById('authNav');
+// ---- 初始化 ----
+(function init() {
+    Auth.current().then(function(user) {
         if (user) {
             currentUserId = user.id;
-            authNav.innerHTML = `<li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="bi bi-person-check"></i> ${user.nickname || user.username}</a>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li><span class="dropdown-item-text text-muted small">${user.role >= 1 ? '管理员' : '普通用户'}</span></li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="#" onclick="Auth.logout()"><i class="bi bi-box-arrow-right"></i> 退出登录</a></li>
-                </ul></li>`;
+            var nav = document.getElementById('authNav');
+            nav.innerHTML = '<li class="nav-item dropdown">' +
+                '<a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="bi bi-person-check"></i> ' + (user.nickname || user.username) + '</a>' +
+                '<ul class="dropdown-menu dropdown-menu-end">' +
+                '<li><span class="dropdown-item-text text-muted small">' + (user.role >= 1 ? '管理员' : '普通用户') + '</span></li>' +
+                '<li><hr class="dropdown-divider"></li>' +
+                '<li><a class="dropdown-item" href="#" onclick="Auth.logout()"><i class="bi bi-box-arrow-right"></i> 退出登录</a></li>' +
+                '</ul></li>';
         } else {
+            isGuest = true;
             GuestMode.init();
             if (GuestMode.isLocked()) { window.location.href = CTX + '/'; return; }
         }
-    })();
-</script>
-<script>
-    let plans = [];
-    let groups = [];
-    let planDetails = [];
-    let editingPlanId = null;
 
-    // 加载分组
-    async function loadGroups() {
-        let url = '/plan/api/groups';
-        if (currentUserId) url += '?userId=' + currentUserId;
-        const result = await API.get(url);
-        if (result.code === 200) {
-            groups = result.data || [];
-            renderGroupFilter();
-            updatePlanGroupSelect();
+        if (isGuest) {
+            document.getElementById('btnCreatePlan').style.display = 'none';
+            document.getElementById('groupFilter').style.display = 'none';
+            document.getElementById('guestNotice').style.display = 'block';
+            document.getElementById('planList').innerHTML = '';
+            document.getElementById('emptyState').style.display = 'none';
+            return;
         }
-    }
 
-    function renderGroupFilter() {
-        const container = document.getElementById('groupFilter');
-        container.innerHTML = '<button class="filter-btn active" data-group="">全部</button>' +
-            groups.map(g => `<button class="filter-btn" data-group="${g.id}">${g.name}</button>`).join('');
-    }
-
-    function updatePlanGroupSelect() {
-        const select = document.getElementById('planGroupId');
-        select.innerHTML = groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
-    }
-
-    // 分组筛选点击
-    document.getElementById('groupFilter').addEventListener('click', function(e) {
-        if (e.target.classList.contains('filter-btn')) {
-            this.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            renderPlans(e.target.dataset.group);
-        }
+        loadGroups();
+        loadPlans();
     });
+})();
 
-    // 加载计划
-    async function loadPlans(groupId) {
-        let url = '/plan/api/list';
-        const params = [];
-        if (groupId) params.push('groupId=' + groupId);
-        if (currentUserId) params.push('userId=' + currentUserId);
-        if (params.length) url += '?' + params.join('&');
-        const result = await API.get(url);
-        if (result.code === 200) {
-            plans = result.data || [];
-            renderPlans('');
-        }
+// ---- 分组 ----
+async function loadGroups() {
+    var url = '/plan/api/groups';
+    if (currentUserId) url += '?userId=' + currentUserId;
+    var result = await API.get(url);
+    if (result.code === 200) {
+        groups = result.data || [];
+        renderGroupFilter();
+        updatePlanGroupSelect();
     }
+}
 
-    function renderPlans(groupId) {
-        const container = document.getElementById('planList');
-        const empty = document.getElementById('emptyState');
-        let filtered = plans;
-        if (groupId) filtered = plans.filter(p => p.groupId == groupId);
+function renderGroupFilter() {
+    var container = document.getElementById('groupFilter');
+    container.innerHTML = '<button class="filter-btn active" data-group="">全部</button>' +
+        groups.map(function(g) { return '<button class="filter-btn" data-group="' + g.id + '">' + esc(g.name) + '</button>'; }).join('');
+}
 
-        if (!filtered.length) {
-            container.innerHTML = '';
-            empty.style.display = 'block';
-            return;
-        }
-        empty.style.display = 'none';
+function updatePlanGroupSelect() {
+    var select = document.getElementById('planGroupId');
+    select.innerHTML = groups.map(function(g) { return '<option value="' + g.id + '">' + esc(g.name) + '</option>'; }).join('');
+}
 
-        container.innerHTML = filtered.map(p => `
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h5 class="fw-bold mb-0">${escapeHtml(p.title)}</h5>
-                            <span class="badge ${p.difficultyLevel == 1 ? 'bg-success' : p.difficultyLevel == 2 ? 'bg-warning' : 'bg-danger'}">
-                                ${p.difficultyLevel == 1 ? '新手' : p.difficultyLevel == 2 ? '进阶' : '高级'}
-                            </span>
-                        </div>
-                        <p class="text-muted small">${p.groupName || '未分组'} | ${p.trainDays}天 | ${p.targetBodyPart || '全身'}</p>
-                        <p class="text-muted small">${escapeHtml(p.description || '')}</p>
-                        <div class="d-flex gap-1 flex-wrap mt-2">
-                            ${(p.details || []).slice(0, 4).map(d => `
-                                <span class="badge bg-dark">${d.exerciseName}</span>
-                            `).join('')}
-                            ${(p.details || []).length > 4 ? `<span class="badge bg-secondary">+${p.details.length - 4}个</span>` : ''}
-                        </div>
-                    </div>
-                    <div class="card-footer bg-transparent border-top-0">
-                        <div class="d-flex gap-1">
-                            <button class="btn btn-primary btn-sm flex-grow-1" onclick="applyPlan(${p.id})">
-                                <i class="bi bi-play-fill"></i> 套用模板
-                            </button>
-                            <button class="btn btn-outline-secondary btn-sm" onclick="editPlan(${p.id})"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-outline-secondary btn-sm" onclick="copyPlan(${p.id})"><i class="bi bi-copy"></i></button>
-                            <button class="btn btn-outline-danger btn-sm" onclick="deletePlan(${p.id})"><i class="bi bi-trash"></i></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `).join('');
+document.getElementById('groupFilter').addEventListener('click', function(e) {
+    if (!e.target.classList.contains('filter-btn')) return;
+    this.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+    e.target.classList.add('active');
+    filterPlans(e.target.dataset.group);
+});
+
+function filterPlans(groupId) {
+    var container = document.getElementById('planList');
+    var empty = document.getElementById('emptyState');
+    var filtered = groupId ? plans.filter(function(p) { return p.groupId == groupId; }) : plans;
+    if (!filtered.length) {
+        container.innerHTML = '';
+        empty.style.display = 'block';
+        return;
     }
+    empty.style.display = 'none';
+    renderPlanCards(filtered);
+}
 
-    function escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+// ---- 计划列表 ----
+async function loadPlans() {
+    var url = '/plan/api/list';
+    var params = [];
+    if (currentUserId) params.push('userId=' + currentUserId);
+    if (params.length) url += '?' + params.join('&');
+    var result = await API.get(url);
+    if (result.code === 200) {
+        plans = result.data || [];
+        renderPlanCards(plans);
+        if (!plans.length) document.getElementById('emptyState').style.display = 'block';
     }
+}
 
-    async function applyPlan(id) {
-        const result = await API.get('/plan/api/' + id + '/apply');
-        if (result.code === 200) {
-            Toast.success('模板已加载，开始训练吧！');
-            window.location.href = CTX + '/training';
-        }
+function renderPlanCards(list) {
+    var container = document.getElementById('planList');
+    container.innerHTML = list.map(function(p) {
+        var badges = (p.details || []).slice(0, 4).map(function(d) {
+            return '<span class="badge bg-dark">' + esc(d.exerciseName) + '</span>';
+        }).join('');
+        var more = (p.details || []).length > 4 ? '<span class="badge bg-secondary">+' + (p.details.length - 4) + '个</span>' : '';
+        var diffBadge = p.difficultyLevel == 1 ? 'bg-success' : (p.difficultyLevel == 2 ? 'bg-warning' : 'bg-danger');
+        var diffText = p.difficultyLevel == 1 ? '新手' : (p.difficultyLevel == 2 ? '进阶' : '高级');
+        return '<div class="col-md-6 col-lg-4">' +
+            '<div class="card h-100">' +
+            '<div class="card-body">' +
+            '<div class="d-flex justify-content-between align-items-start mb-2">' +
+            '<h5 class="fw-bold mb-0">' + esc(p.title) + '</h5>' +
+            '<span class="badge ' + diffBadge + '">' + diffText + '</span></div>' +
+            '<p class="text-muted small">' + (p.groupName || '未分组') + ' | ' + p.trainDays + '天 | ' + (p.targetBodyPart || '全身') + '</p>' +
+            '<p class="text-muted small">' + esc(p.description || '') + '</p>' +
+            '<div class="d-flex gap-1 flex-wrap mt-2">' + badges + more + '</div></div>' +
+            '<div class="card-footer bg-transparent border-top-0">' +
+            '<div class="d-flex gap-1">' +
+            '<button class="btn btn-primary btn-sm flex-grow-1" onclick="applyPlan(' + p.id + ')"><i class="bi bi-play-fill"></i> 套用模板</button>' +
+            '<button class="btn btn-outline-secondary btn-sm" onclick="editPlan(' + p.id + ')"><i class="bi bi-pencil"></i></button>' +
+            '<button class="btn btn-outline-secondary btn-sm" onclick="copyPlan(' + p.id + ')"><i class="bi bi-copy"></i></button>' +
+            '<button class="btn btn-outline-danger btn-sm" onclick="deletePlan(' + p.id + ')"><i class="bi bi-trash"></i></button>' +
+            '</div></div></div></div>';
+    }).join('');
+}
+
+// ---- 搜索/自定义面板切换 ----
+function togglePlanSearch() {
+    var sp = document.getElementById('planSearchPanel');
+    var cp = document.getElementById('planCustomForm');
+    var btn = document.getElementById('btnSearchPlan');
+    var cbtn = document.getElementById('btnCustomPlan');
+    var open = sp.style.display !== 'block';
+    sp.style.display = open ? 'block' : 'none';
+    cp.style.display = 'none';
+    btn.innerHTML = open ? '<i class="bi bi-x"></i> 收起搜索' : '<i class="bi bi-search"></i> 搜索动作';
+    cbtn.innerHTML = '<i class="bi bi-pencil-square"></i> 自定义动作';
+    if (open) {
+        document.getElementById('planSearchInput').value = '';
+        document.getElementById('planSearchResults').innerHTML = '';
+        bindPlanSearch();
     }
+}
 
-    function openCreatePlan() {
-        editingPlanId = null;
-        document.getElementById('planModalTitle').textContent = '创建训练计划';
-        document.getElementById('planId').value = '';
-        document.getElementById('planTitle').value = '';
-        document.getElementById('planDifficulty').value = '1';
-        document.getElementById('planTrainDays').value = '1';
-        document.getElementById('planTarget').value = '';
-        document.getElementById('planDesc').value = '';
-        planDetails = [];
-        renderPlanDetails();
-        new bootstrap.Modal(document.getElementById('planModal')).show();
+function togglePlanCustom() {
+    var cp = document.getElementById('planCustomForm');
+    var sp = document.getElementById('planSearchPanel');
+    var btn = document.getElementById('btnCustomPlan');
+    var sbtn = document.getElementById('btnSearchPlan');
+    var open = cp.style.display !== 'block';
+    cp.style.display = open ? 'block' : 'none';
+    sp.style.display = 'none';
+    document.getElementById('planSearchResults').innerHTML = '';
+    btn.innerHTML = open ? '<i class="bi bi-x"></i> 收起自定义' : '<i class="bi bi-pencil-square"></i> 自定义动作';
+    sbtn.innerHTML = '<i class="bi bi-search"></i> 搜索动作';
+}
+
+function resetPlanPanels() {
+    document.getElementById('planSearchPanel').style.display = 'none';
+    document.getElementById('planCustomForm').style.display = 'none';
+    document.getElementById('planSearchInput').value = '';
+    document.getElementById('planSearchResults').innerHTML = '';
+    document.getElementById('btnSearchPlan').innerHTML = '<i class="bi bi-search"></i> 搜索动作';
+    document.getElementById('btnCustomPlan').innerHTML = '<i class="bi bi-pencil-square"></i> 自定义动作';
+    resetPlanCustomForm();
+}
+
+document.getElementById('btnSearchPlan').addEventListener('click', togglePlanSearch);
+document.getElementById('btnCustomPlan').addEventListener('click', togglePlanCustom);
+
+// ---- 搜索 ----
+var _planSearchTimer;
+function bindPlanSearch() {
+    var input = document.getElementById('planSearchInput');
+    if (input.dataset.bound) return;
+    input.dataset.bound = '1';
+    input.addEventListener('input', function() {
+        clearTimeout(_planSearchTimer);
+        var kw = this.value.trim();
+        if (!kw) { document.getElementById('planSearchResults').innerHTML = ''; return; }
+        _planSearchTimer = setTimeout(function() { planSearch(kw); }, 300);
+    });
+}
+
+async function planSearch(keyword) {
+    var container = document.getElementById('planSearchResults');
+    var result = await API.get('/exercise/api/list?keyword=' + encodeURIComponent(keyword));
+    if (result.code !== 200 || !result.data || !result.data.length) {
+        container.innerHTML = '<div class="list-group-item text-muted small">未找到匹配动作</div>';
+        return;
     }
+    container.innerHTML = result.data.map(function(ex) {
+        var cat = ex.category || '';
+        return '<div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-1 px-2">' +
+            '<div><small><span class="badge badge-' + catClass(cat) + ' me-1">' + cat + '</span>' + esc(ex.name) + '</small></div>' +
+            '<button class="btn btn-outline-primary btn-sm py-0" onclick="addPlanSearchEx(' + ex.id + ', \'' + esc(ex.name).replace(/'/g, "\\'") + '\', \'' + (ex.category || '').replace(/'/g, "\\'") + '\')"><i class="bi bi-plus"></i></button>' +
+            '</div>';
+    }).join('');
+}
 
-    async function editPlan(id) {
-        const result = await API.get('/plan/api/' + id);
-        if (result.code === 200) {
-            const p = result.data;
-            editingPlanId = p.id;
-            document.getElementById('planModalTitle').textContent = '编辑训练计划';
-            document.getElementById('planId').value = p.id;
-            document.getElementById('planTitle').value = p.title;
-            document.getElementById('planDifficulty').value = p.difficultyLevel;
-            document.getElementById('planTrainDays').value = p.trainDays;
-            document.getElementById('planTarget').value = p.targetBodyPart || '';
-            document.getElementById('planDesc').value = p.description || '';
-            document.getElementById('planGroupId').value = p.groupId || '';
-            planDetails = (p.details || []).map(d => ({
-                id: d.id, exerciseId: d.exerciseId, exerciseName: d.exerciseName,
-                dayNumber: d.dayNumber || 1, sets: d.sets || 3, reps: d.reps || 12,
-                weight: d.weight, restSeconds: d.restSeconds || 60,
-                notes: d.notes || '', sortOrder: d.sortOrder || 0
-            }));
-            renderPlanDetails();
-            new bootstrap.Modal(document.getElementById('planModal')).show();
-        }
+function addPlanSearchEx(exId, name, category) {
+    if (planDetails.find(function(d) { return d.exerciseId === exId; })) {
+        Toast.warning('该动作已在计划中');
+        return;
     }
+    planDetails.push({
+        exerciseId: exId, exerciseName: name, exerciseCategory: category,
+        dayNumber: 1, sets: 3, reps: 12, weight: null, restSeconds: 60,
+        notes: '', sortOrder: planDetails.length + 1
+    });
+    renderPlanDetails();
+    Toast.success('已添加: ' + name);
+}
 
-    async function savePlan() {
-        const plan = {
-            title: document.getElementById('planTitle').value,
-            groupId: document.getElementById('planGroupId').value || null,
-            difficultyLevel: parseInt(document.getElementById('planDifficulty').value),
-            trainDays: parseInt(document.getElementById('planTrainDays').value),
-            targetBodyPart: document.getElementById('planTarget').value,
-            description: document.getElementById('planDesc').value,
-            details: planDetails.filter(d => d.exerciseId)
+// ---- 自定义动作 ----
+function addPlanCustomEx() {
+    var name = document.getElementById('planCustomName').value.trim();
+    if (!name) { Toast.warning('请输入动作名称'); return; }
+    var part = document.getElementById('planCustomPart').value.trim();
+    var cat = document.getElementById('planCustomCat').value.trim();
+    planDetails.push({
+        exerciseId: null,
+        exerciseName: name,
+        exerciseCategory: cat || part,
+        bodyPart: part,
+        dayNumber: 1,
+        sets: parseInt(document.getElementById('planCustomSets').value) || 3,
+        reps: parseInt(document.getElementById('planCustomReps').value) || 12,
+        weight: document.getElementById('planCustomWeight').value ? parseFloat(document.getElementById('planCustomWeight').value) : null,
+        restSeconds: parseInt(document.getElementById('planCustomRest').value) || 60,
+        notes: part ? ('目标部位: ' + part) : '',
+        sortOrder: planDetails.length + 1
+    });
+    resetPlanCustomForm();
+    togglePlanCustom();
+    renderPlanDetails();
+    Toast.success('已添加自定义动作: ' + name);
+}
+
+function resetPlanCustomForm() {
+    document.getElementById('planCustomName').value = '';
+    document.getElementById('planCustomPart').value = '';
+    document.getElementById('planCustomCat').value = '';
+    document.getElementById('planCustomSets').value = '3';
+    document.getElementById('planCustomReps').value = '12';
+    document.getElementById('planCustomWeight').value = '';
+    document.getElementById('planCustomRest').value = '60';
+}
+
+// ---- 明细渲染 ----
+function renderPlanDetails() {
+    var container = document.getElementById('planDetailContainer');
+    document.getElementById('detailCount').textContent = planDetails.length ? '(' + planDetails.length + '个动作)' : '';
+    if (!planDetails.length) {
+        container.innerHTML = '<p class="text-muted text-center py-3">暂无训练内容，请搜索或自定义添加动作</p>';
+        return;
+    }
+    container.innerHTML = planDetails.map(function(d, i) {
+        var label = d.exerciseId
+            ? '<span class="badge badge-' + catClass(d.exerciseCategory) + ' me-1">' + (d.exerciseCategory || '') + '</span>' + esc(d.exerciseName)
+            : '<span class="badge bg-warning text-dark me-1">自定义</span>' + esc(d.exerciseName);
+        return '<div class="detail-row">' +
+            '<div class="flex-grow-1"><strong>' + label + '</strong>' +
+            (d.notes ? '<br><small class="text-muted">' + esc(d.notes) + '</small>' : '') + '</div>' +
+            '<div class="d-flex gap-2 align-items-center">' +
+            '<input type="number" class="form-control form-control-sm" style="width:50px" value="' + d.sets + '" min="1"' +
+            ' onchange="planDetails[' + i + '].sets=parseInt(this.value)||3" title="组数"><span class="text-muted small">组</span>' +
+            '<input type="number" class="form-control form-control-sm" style="width:50px" value="' + d.reps + '" min="1"' +
+            ' onchange="planDetails[' + i + '].reps=parseInt(this.value)||12" title="次数"><span class="text-muted small">次</span>' +
+            '<input type="number" class="form-control form-control-sm" style="width:55px" value="' + (d.weight || '') + '" step="0.5"' +
+            ' onchange="planDetails[' + i + '].weight=this.value?parseFloat(this.value):null" title="重量(kg)"><span class="text-muted small">kg</span>' +
+            '<input type="number" class="form-control form-control-sm" style="width:45px" value="' + (d.restSeconds || 60) + '" min="0"' +
+            ' onchange="planDetails[' + i + '].restSeconds=parseInt(this.value)||60" title="休息秒"><span class="text-muted small">s</span>' +
+            '<button class="btn btn-outline-danger btn-sm" onclick="planDetails.splice(' + i + ',1);renderPlanDetails()"><i class="bi bi-x"></i></button>' +
+            '</div></div>';
+    }).join('');
+}
+
+// ---- CRUD ----
+function openCreatePlan() {
+    editingPlanId = null;
+    document.getElementById('planModalTitle').textContent = '创建训练计划';
+    document.getElementById('planId').value = '';
+    document.getElementById('planTitle').value = '';
+    document.getElementById('planDifficulty').value = '1';
+    document.getElementById('planTrainDays').value = '1';
+    document.getElementById('planTarget').value = '';
+    document.getElementById('planDesc').value = '';
+    planDetails = [];
+    resetPlanPanels();
+    renderPlanDetails();
+    new bootstrap.Modal(document.getElementById('planModal')).show();
+}
+
+async function editPlan(id) {
+    var result = await API.get('/plan/api/' + id);
+    if (result.code !== 200) return;
+    var p = result.data;
+    editingPlanId = p.id;
+    document.getElementById('planModalTitle').textContent = '编辑训练计划';
+    document.getElementById('planId').value = p.id;
+    document.getElementById('planTitle').value = p.title;
+    document.getElementById('planDifficulty').value = p.difficultyLevel;
+    document.getElementById('planTrainDays').value = p.trainDays;
+    document.getElementById('planTarget').value = p.targetBodyPart || '';
+    document.getElementById('planDesc').value = p.description || '';
+    document.getElementById('planGroupId').value = p.groupId || '';
+    planDetails = (p.details || []).map(function(d) {
+        return {
+            id: d.id, exerciseId: d.exerciseId, exerciseName: d.exerciseName,
+            exerciseCategory: d.exerciseCategory || '',
+            bodyPart: d.bodyPart || d.exerciseCategory || '',
+            dayNumber: d.dayNumber || 1, sets: d.sets || 3, reps: d.reps || 12,
+            weight: d.weight, restSeconds: d.restSeconds || 60,
+            notes: d.notes || '', sortOrder: d.sortOrder || 0
         };
+    });
+    resetPlanPanels();
+    renderPlanDetails();
+    new bootstrap.Modal(document.getElementById('planModal')).show();
+}
 
-        if (!plan.title) { Toast.warning('请输入计划标题'); return; }
+async function savePlan() {
+    var plan = {
+        title: document.getElementById('planTitle').value,
+        groupId: document.getElementById('planGroupId').value || null,
+        difficultyLevel: parseInt(document.getElementById('planDifficulty').value),
+        trainDays: parseInt(document.getElementById('planTrainDays').value),
+        targetBodyPart: document.getElementById('planTarget').value,
+        description: document.getElementById('planDesc').value,
+        details: planDetails.filter(function(d) { return d.exerciseId || d.exerciseName; })
+    };
+    if (!plan.title) { Toast.warning('请输入计划标题'); return; }
 
-        let result;
-        if (editingPlanId) {
-            result = await API.put('/plan/api/' + editingPlanId, plan);
-        } else {
-            result = await API.post('/plan/api/create', plan);
-        }
-
-        if (result.code === 200) {
-            Toast.success(result.message);
-            bootstrap.Modal.getInstance(document.getElementById('planModal')).hide();
-            loadPlans();
-        } else {
-            Toast.error(result.message);
-        }
+    var result;
+    if (editingPlanId) {
+        result = await API.put('/plan/api/' + editingPlanId, plan);
+    } else {
+        result = await API.post('/plan/api/create', plan);
     }
-
-    async function deletePlan(id) {
-        if (!confirm('确定删除该训练计划吗？')) return;
-        const result = await API.delete('/plan/api/' + id);
-        if (result.code === 200) {
-            Toast.success('删除成功');
-            loadPlans();
-        }
+    if (result.code === 200) {
+        Toast.success(result.message);
+        bootstrap.Modal.getInstance(document.getElementById('planModal')).hide();
+        loadPlans();
+    } else {
+        Toast.error(result.message);
     }
+}
 
-    async function copyPlan(id) {
-        const result = await API.post('/plan/api/' + id + '/copy');
-        if (result.code === 200) {
-            Toast.success('复制成功');
-            loadPlans();
-        }
-    }
+async function deletePlan(id) {
+    if (!confirm('确定删除该训练计划吗？')) return;
+    var result = await API.delete('/plan/api/' + id);
+    if (result.code === 200) { Toast.success('删除成功'); loadPlans(); }
+    else Toast.error(result.message);
+}
 
-    function addPlanDetail() {
-        planDetails.push({ exerciseId: null, exerciseName: '', dayNumber: 1, sets: 3, reps: 12, weight: null, restSeconds: 60, notes: '', sortOrder: planDetails.length + 1 });
-        renderPlanDetails();
-    }
+async function copyPlan(id) {
+    var result = await API.post('/plan/api/' + id + '/copy');
+    if (result.code === 200) { Toast.success('复制成功'); loadPlans(); }
+    else Toast.error(result.message);
+}
 
-    function removePlanDetail(index) {
-        planDetails.splice(index, 1);
-        renderPlanDetails();
-    }
+// ---- 套用模板 ----
+async function applyPlan(id) {
+    var result = await API.get('/plan/api/' + id + '/apply');
+    if (result.code !== 200) return;
+    var plan = result.data;
+    LocalStore.set('appliedPlan', (plan.details || []).map(function(d) {
+        return {
+            exerciseId: d.exerciseId, exerciseName: d.exerciseName,
+            exerciseCategory: d.exerciseCategory || '',
+            bodyPart: d.bodyPart || d.exerciseCategory || '',
+            sets: d.sets || 3, reps: d.reps || 12,
+            weight: d.weight || null, restSeconds: d.restSeconds || 60,
+            notes: d.notes || ''
+        };
+    }));
+    Toast.success('模板已加载，即将跳转到训练记录');
+    window.location.href = CTX + '/training';
+}
 
-    function renderPlanDetails() {
-        const container = document.getElementById('planDetailContainer');
-        if (!planDetails.length) {
-            container.innerHTML = '<p class="text-muted text-center py-3">暂无训练内容，请添加动作</p>';
-            return;
-        }
-        container.innerHTML = planDetails.map((d, i) => `
-            <div class="detail-row">
-                <div class="flex-grow-1">
-                    <strong>${d.exerciseName || '选择动作'}</strong>
-                    <input type="text" class="form-control form-control-sm mt-1" placeholder="动作名称"
-                           value="${escapeHtml(d.exerciseName || '')}"
-                           onchange="planDetails[${i}].exerciseName = this.value">
-                </div>
-                <div class="d-flex gap-2 align-items-center">
-                    <input type="number" class="form-control form-control-sm" style="width:50px" value="${d.sets}" min="1"
-                           onchange="planDetails[${i}].sets = parseInt(this.value)" title="组数">组
-                    <input type="number" class="form-control form-control-sm" style="width:50px" value="${d.reps}" min="1"
-                           onchange="planDetails[${i}].reps = parseInt(this.value)" title="次数">次
-                    <button class="btn btn-outline-danger btn-sm" onclick="removePlanDetail(${i})"><i class="bi bi-x"></i></button>
-                </div>
-            </div>
-        `).join('');
-    }
+// ---- 工具 ----
+function esc(text) {
+    if (!text) return '';
+    var d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
+}
 
-    loadGroups();
-    loadPlans();
+function catClass(cat) {
+    var map = { '胸部': 'chest', '背部': 'back', '肩部': 'shoulder', '手臂': 'arm', '腿部': 'leg', '核心': 'core' };
+    return map[cat] || 'core';
+}
 </script>
 </body>
 </html>

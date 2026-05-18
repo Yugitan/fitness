@@ -20,12 +20,11 @@ public class ExerciseController {
     @Resource
     private ExerciseService exerciseService;
 
-    /** 动作详情页 */
-    @GetMapping("/{id}")
+    /** 动作详情页（SPA 路由） */
+    @GetMapping("/{id:[0-9]+}")
     public String detail(@PathVariable Long id, Model model) {
         exerciseService.incrementViewCount(id);
-        model.addAttribute("exercise", exerciseService.getById(id));
-        return "exercise/detail";
+        return "redirect:/exercise/" + id + "/";
     }
 
     /** API：获取所有动作 */

@@ -27,6 +27,7 @@
         WHERE is_deleted = 0
         <if test="startDate != null">AND train_date &gt;= #{startDate}</if>
         <if test="endDate != null">AND train_date &lt;= #{endDate}</if>
+        <if test="userId != null">AND user_id = #{userId}</if>
         ORDER BY train_date DESC, create_time DESC
     </select>
 

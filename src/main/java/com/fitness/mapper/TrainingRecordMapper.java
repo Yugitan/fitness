@@ -16,9 +16,10 @@ public interface TrainingRecordMapper {
     /** 根据ID查询训练记录 */
     TrainingRecord selectById(@Param("id") Long id);
 
-    /** 按日期范围查询训练记录列表 */
+    /** 按日期范围查询训练记录列表（含用户过滤） */
     List<TrainingRecord> selectByDateRange(@Param("startDate") LocalDate startDate,
-                                            @Param("endDate") LocalDate endDate);
+                                            @Param("endDate") LocalDate endDate,
+                                            @Param("userId") Long userId);
 
     /** 查询某用户的所有训练记录（按日期倒序） */
     List<TrainingRecord> selectAll(@Param("userId") Long userId);

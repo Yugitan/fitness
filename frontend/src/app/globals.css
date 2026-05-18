@@ -1,0 +1,88 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 6%;
+    --surface: 0 0% 10%;
+    --surface-hover: 0 0% 14%;
+    --surface-border: 0 0% 16%;
+    --primary: 109 15% 54%;
+    --primary-light: 109 18% 68%;
+    --primary-dark: 109 13% 41%;
+    --accent: 42 49% 61%;
+    --accent-light: 40 50% 70%;
+    --text: 48 13% 96%;
+    --text-muted: 142 3% 63%;
+    --text-dim: 220 5% 46%;
+    --danger: 354 57% 57%;
+    --success: 143 60% 56%;
+    --warning: 38 92% 50%;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--surface-border)) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--surface-border));
+    border-radius: 3px;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-text font-body antialiased;
+  }
+
+  /* Selection */
+  ::selection {
+    background-color: hsl(var(--primary) / 0.3);
+    color: hsl(var(--text));
+  }
+}
+
+@layer components {
+  /* Glass surface */
+  .glass {
+    @apply bg-surface/80 backdrop-blur-xl border border-surface-border;
+  }
+
+  /* Gradient text */
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary-light via-accent-light to-primary-light bg-clip-text text-transparent;
+  }
+
+  /* Hover lift card effect */
+  .card-lift {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/30;
+  }
+
+  /* Focus ring */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+}
+
+@layer utilities {
+  /* Staggered animation delays */
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+}

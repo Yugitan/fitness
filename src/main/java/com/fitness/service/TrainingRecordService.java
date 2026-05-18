@@ -14,8 +14,8 @@ public interface TrainingRecordService {
     /** 根据ID查询训练记录（含明细） */
     TrainingRecord getById(Long id);
 
-    /** 按日期范围查询训练记录 */
-    List<TrainingRecord> listByDateRange(LocalDate startDate, LocalDate endDate);
+    /** 按日期范围查询训练记录（含明细 + 用户隔离） */
+    List<TrainingRecord> listByDateRange(LocalDate startDate, LocalDate endDate, Long userId);
 
     /** 查询所有训练记录 */
     List<TrainingRecord> listAll(Long userId);

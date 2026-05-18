@@ -37,6 +37,12 @@ public class TrainingRecordDetail extends BaseEntity {
     /** 关联的动作分类（非数据库字段） */
     private String exerciseCategory;
 
+    /** 组间休息时间（秒，非数据库字段） */
+    private Integer restSeconds;
+
+    /** 训练部位（非数据库字段） */
+    private String bodyPart;
+
     // ========== Getter/Setter ==========
 
     public Long getRecordId() { return recordId; }
@@ -68,4 +74,10 @@ public class TrainingRecordDetail extends BaseEntity {
 
     public String getExerciseCategory() { return exerciseCategory; }
     public void setExerciseCategory(String exerciseCategory) { this.exerciseCategory = exerciseCategory; }
+
+    public Integer getRestSeconds() { return restSeconds; }
+    public void setRestSeconds(Integer restSeconds) { this.restSeconds = restSeconds; }
+
+    public String getBodyPart() { return bodyPart; }
+    public void setBodyPart(String bodyPart) { this.bodyPart = bodyPart; }
 }

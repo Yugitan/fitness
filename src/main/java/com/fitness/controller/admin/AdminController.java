@@ -41,61 +41,59 @@ public class AdminController {
         return Result.success("已退出登录");
     }
 
-    /** 后台管理主页面 */
+    /** 后台管理主页面（SPA 路由） */
     @GetMapping("")
     @RequiresAdmin
     public String index(Model model, HttpSession session) {
-        User loginUser = (User) session.getAttribute("loginUser");
-        model.addAttribute("loginUser", loginUser);
-        return "admin/index";
+        return "redirect:/admin/";
     }
 
-    /** 仪表盘页面 */
+    /** 仪表盘页面（SPA 路由） */
     @GetMapping("/dashboard")
     @RequiresAdmin
     public String dashboard(Model model) {
-        return "admin/index";
+        return "redirect:/admin/";
     }
 
-    /** 用户管理页面 */
+    /** 用户管理页面（SPA 路由） */
     @GetMapping("/user/list")
     @RequiresAdmin
     public String userListPage() {
-        return "admin/user/list";
+        return "redirect:/admin/user/";
     }
 
-    /** 动作库管理页面 */
+    /** 动作库管理页面（SPA 路由） */
     @GetMapping("/exercise/list")
     @RequiresAdmin
     public String exerciseListPage() {
-        return "admin/exercise/list";
+        return "redirect:/admin/exercise/";
     }
 
-    /** 计划管理页面 */
+    /** 计划管理页面（SPA 路由） */
     @GetMapping("/plan/list")
     @RequiresAdmin
     public String planListPage() {
-        return "admin/plan/list";
+        return "redirect:/admin/plan/";
     }
 
-    /** 博主管理页面 */
+    /** 博主管理页面（SPA 路由） */
     @GetMapping("/blogger/list")
     @RequiresAdmin
     public String bloggerListPage() {
-        return "admin/blogger/list";
+        return "redirect:/admin/blogger/";
     }
 
-    /** 博主计划管理页面 */
+    /** 博主计划管理页面（SPA 路由） */
     @GetMapping("/blogger/plan")
     @RequiresAdmin
     public String bloggerPlanPage() {
-        return "admin/blogger/plan";
+        return "redirect:/admin/blogger/plan/";
     }
 
-    /** 系统配置页面 */
+    /** 系统配置页面（SPA 路由） */
     @GetMapping("/config")
     @RequiresAdmin
     public String configPage() {
-        return "admin/config";
+        return "redirect:/admin/config/";
     }
 }

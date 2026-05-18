@@ -36,8 +36,12 @@ public class TrainingRecordServiceImpl implements TrainingRecordService {
     }
 
     @Override
-    public List<TrainingRecord> listByDateRange(LocalDate startDate, LocalDate endDate) {
-        return recordMapper.selectByDateRange(startDate, endDate);
+    public List<TrainingRecord> listByDateRange(LocalDate startDate, LocalDate endDate, Long userId) {
+        List<TrainingRecord> records = recordMapper.selectByDateRange(startDate, endDate, userId);
+        for (TrainingRecord record : records) {
+            record.setDetails(detailMapper.selectByRecordId(record.getId()));
+        }
+        return records;
     }
 
     @Override

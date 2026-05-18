@@ -37,19 +37,16 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3 class="fw-bold mb-0">训练记录</h3>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#recordModal" onclick="openCreateModal()">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#recordModal" onclick="openCreateModal()" id="btnNewRecord">
             <i class="bi bi-plus-lg"></i> 新增训练记录
         </button>
     </div>
 
-    <!-- 日期筛选 -->
     <div class="row g-2 mb-3">
         <div class="col-auto">
             <input type="date" class="form-control" id="startDate" onchange="loadRecords()">
         </div>
-        <div class="col-auto">
-            <span class="text-muted align-middle">至</span>
-        </div>
+        <div class="col-auto"><span class="text-muted align-middle">至</span></div>
         <div class="col-auto">
             <input type="date" class="form-control" id="endDate" onchange="loadRecords()">
         </div>
@@ -58,10 +55,7 @@
         </div>
     </div>
 
-    <!-- 训练记录列表 -->
     <div id="recordList"></div>
-
-    <!-- 空状态 -->
     <div id="emptyState" class="card text-center p-5" style="display:none">
         <i class="bi bi-clipboard2 fs-1 text-muted"></i>
         <h5 class="mt-2">暂无训练记录</h5>
@@ -94,24 +88,59 @@
                     </div>
                 </div>
 
-                <!-- 训练动作明细 -->
+                <!-- 训练动作 — 统一搜索面板 -->
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="fw-bold mb-0">训练动作</h6>
-                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="addDetailRow()">
-                        <i class="bi bi-plus"></i> 添加动作
-                    </button>
-                </div>
-                <div id="detailContainer"></div>
-
-                <!-- 快捷添加：从动作库选择 -->
-                <div class="mt-3">
-                    <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#quickAdd">
-                        <i class="bi bi-lightning"></i> 从动作库快速添加
-                    </button>
-                    <div class="collapse mt-2" id="quickAdd">
-                        <div class="row g-1" id="quickExerciseList" style="max-height:200px;overflow-y:auto"></div>
+                    <h6 class="fw-bold mb-0">训练动作 <span class="text-muted small fw-normal" id="detailCount"></span></h6>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-outline-primary btn-sm" id="btnSearchEx" type="button">
+                            <i class="bi bi-search"></i> 搜索添加
+                        </button>
+                        <button class="btn btn-outline-warning btn-sm" id="btnCustomEx" type="button">
+                            <i class="bi bi-pencil-square"></i> 自定义
+                        </button>
                     </div>
                 </div>
+
+                <div id="searchPanel" style="display:none">
+                    <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="exSearchInput" placeholder="输入关键词搜索动作库...">
+                    </div>
+                    <div id="exSearchResults" class="list-group list-group-flush mb-2" style="max-height:200px;overflow-y:auto"></div>
+                </div>
+
+                <div id="customPanel" class="card card-body bg-dark border-secondary p-2 mb-2" style="display:none">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <input type="text" class="form-control form-control-sm" id="customExName" placeholder="动作名称*">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" class="form-control form-control-sm" id="customExPart" placeholder="训练部位">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" class="form-control form-control-sm" id="customExCat" placeholder="分类(胸/背/肩/手臂/腿/核心)">
+                        </div>
+                        <div class="col-md-2">
+                            <input type="number" class="form-control form-control-sm" id="customExSets" value="3" min="1" placeholder="组数">
+                        </div>
+                        <div class="col-md-2">
+                            <input type="number" class="form-control form-control-sm" id="customExReps" value="12" min="1" placeholder="次数">
+                        </div>
+                        <div class="col-md-2">
+                            <input type="number" class="form-control form-control-sm" id="customExWeight" value="" step="0.5" placeholder="重量(kg)">
+                        </div>
+                        <div class="col-md-2">
+                            <input type="number" class="form-control form-control-sm" id="customExRest" value="60" min="0" placeholder="休息(s)">
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button class="btn btn-primary btn-sm w-100" onclick="addCustomEx()">
+                                <i class="bi bi-check-lg"></i> 添加自定义动作
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="detailContainer"></div>
             </div>
             <div class="modal-footer border-secondary">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
@@ -130,253 +159,375 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script th:src="@{/static/js/common.js}"></script>
 <script>
-    let recordDetails = [];
-    let editingRecordId = null;
-    let currentUserId = null;
+var recordDetails = [];
+var editingRecordId = null;
+var currentUserId = null;
+var isGuest = false;
+var exMap = {}; // exercise cache: id -> {name, category}
 
-    (async function() {
-        const user = await Auth.current();
-        const authNav = document.getElementById('authNav');
+(function init() {
+    Auth.current().then(function(user) {
         if (user) {
             currentUserId = user.id;
-            authNav.innerHTML = `<li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="bi bi-person-check"></i> ${user.nickname || user.username}</a>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li><span class="dropdown-item-text text-muted small">${user.role >= 1 ? '管理员' : '普通用户'}</span></li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="#" onclick="Auth.logout()"><i class="bi bi-box-arrow-right"></i> 退出登录</a></li>
-                </ul></li>`;
+            var nav = document.getElementById('authNav');
+            nav.innerHTML = '<li class="nav-item dropdown">' +
+                '<a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="bi bi-person-check"></i> ' + (user.nickname || user.username) + '</a>' +
+                '<ul class="dropdown-menu dropdown-menu-end">' +
+                '<li><span class="dropdown-item-text text-muted small">' + (user.role >= 1 ? '管理员' : '普通用户') + '</span></li>' +
+                '<li><hr class="dropdown-divider"></li>' +
+                '<li><a class="dropdown-item" href="#" onclick="Auth.logout()"><i class="bi bi-box-arrow-right"></i> 退出登录</a></li>' +
+                '</ul></li>';
         } else {
+            isGuest = true;
             GuestMode.init();
             if (GuestMode.isLocked()) { window.location.href = CTX + '/'; return; }
         }
-    })();
-
-    // 加载训练记录
-    async function loadRecords() {
-        const startDate = document.getElementById('startDate').value;
-        const endDate = document.getElementById('endDate').value;
-        let url = '/training/api/list';
-        const params = [];
-        if (startDate) params.push('startDate=' + startDate);
-        if (endDate) params.push('endDate=' + endDate);
-        if (currentUserId) params.push('userId=' + currentUserId);
-        if (params.length) url += '?' + params.join('&');
-
-        const result = await API.get(url);
-        const container = document.getElementById('recordList');
-        const emptyState = document.getElementById('emptyState');
-
-        if (result.code !== 200 || !result.data || !result.data.length) {
-            container.innerHTML = '';
-            emptyState.style.display = 'block';
-            return;
+        if (isGuest) {
+            var btn = document.getElementById('btnNewRecord');
+            if (btn) btn.style.display = 'none';
         }
+    });
 
-        emptyState.style.display = 'none';
-        container.innerHTML = result.data.map(record => `
-            <div class="record-item ${record.isCompleted ? 'completed' : ''}">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                        <div class="d-flex align-items-center gap-2 mb-2">
-                            <h5 class="mb-0">${DateUtil.formatCN(record.trainDate)}</h5>
-                            ${record.isCompleted ? '<span class="badge bg-success">已完成</span>' : '<span class="badge bg-secondary">进行中</span>'}
-                        </div>
-                        <p class="text-muted small mb-1">
-                            时长: ${record.duration || 0}分钟 |
-                            总组数: ${record.totalSets || 0} |
-                            总次数: ${record.totalReps || 0}
-                        </p>
-                        <p class="text-muted small mb-1">${record.notes || ''}</p>
-                        <div class="d-flex flex-wrap gap-1 mt-2">
-                            ${(record.details || []).map(d => `
-                                <span class="badge bg-dark">${d.exerciseName || '动作'} ${d.setNumber ?? d.sets ?? 0}组x${d.reps}次 ${d.weight ? d.weight+'kg' : ''}</span>
-                            `).join('')}
-                        </div>
-                    </div>
-                    <div class="d-flex gap-1 flex-shrink-0 ms-3">
-                        ${!record.isCompleted ? `<button class="btn btn-success btn-sm" onclick="completeRecord(${record.id})"><i class="bi bi-check-lg"></i></button>` : ''}
-                        <button class="btn btn-outline-secondary btn-sm" onclick="copyRecord(${record.id})"><i class="bi bi-copy"></i></button>
-                        <button class="btn btn-outline-secondary btn-sm" onclick="editRecord(${record.id})"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-outline-danger btn-sm" onclick="deleteRecord(${record.id})"><i class="bi bi-trash"></i></button>
-                    </div>
-                </div>
-            </div>
-        `).join('');
+    loadRecords();
+})();
+
+// ---- 搜索/自定义面板切换 ----
+function toggleSearchPanel() {
+    var sp = document.getElementById('searchPanel');
+    var cp = document.getElementById('customPanel');
+    var btn = document.getElementById('btnSearchEx');
+    var cbtn = document.getElementById('btnCustomEx');
+    var open = sp.style.display !== 'block';
+    sp.style.display = open ? 'block' : 'none';
+    cp.style.display = 'none';
+    btn.innerHTML = open ? '<i class="bi bi-x"></i> 收起搜索' : '<i class="bi bi-search"></i> 搜索添加';
+    cbtn.innerHTML = '<i class="bi bi-pencil-square"></i> 自定义';
+    if (open) {
+        document.getElementById('exSearchInput').value = '';
+        document.getElementById('exSearchResults').innerHTML = '';
+        bindSearchInput();
     }
+}
 
-    function clearFilter() {
-        document.getElementById('startDate').value = '';
-        document.getElementById('endDate').value = '';
-        loadRecords();
+function toggleCustomPanel() {
+    var cp = document.getElementById('customPanel');
+    var sp = document.getElementById('searchPanel');
+    var btn = document.getElementById('btnCustomEx');
+    var sbtn = document.getElementById('btnSearchEx');
+    var open = cp.style.display !== 'block';
+    cp.style.display = open ? 'block' : 'none';
+    sp.style.display = 'none';
+    document.getElementById('exSearchResults').innerHTML = '';
+    btn.innerHTML = open ? '<i class="bi bi-x"></i> 收起自定义' : '<i class="bi bi-pencil-square"></i> 自定义';
+    sbtn.innerHTML = '<i class="bi bi-search"></i> 搜索添加';
+}
+
+function resetPanels() {
+    document.getElementById('searchPanel').style.display = 'none';
+    document.getElementById('customPanel').style.display = 'none';
+    document.getElementById('exSearchInput').value = '';
+    document.getElementById('exSearchResults').innerHTML = '';
+    document.getElementById('btnSearchEx').innerHTML = '<i class="bi bi-search"></i> 搜索添加';
+    document.getElementById('btnCustomEx').innerHTML = '<i class="bi bi-pencil-square"></i> 自定义';
+}
+
+document.getElementById('btnSearchEx').addEventListener('click', toggleSearchPanel);
+document.getElementById('btnCustomEx').addEventListener('click', toggleCustomPanel);
+
+// ---- 从动作库缓存数据 ----
+async function loadExerciseCache() {
+    var result = await API.get('/exercise/api/list');
+    if (result.code === 200 && result.data) {
+        exMap = {};
+        result.data.forEach(function(ex) { exMap[ex.id] = ex; });
     }
+}
 
-    function openCreateModal() {
-        editingRecordId = null;
-        document.getElementById('modalTitle').textContent = '新增训练记录';
-        document.getElementById('recordId').value = '';
-        document.getElementById('trainDate').value = DateUtil.today();
-        document.getElementById('duration').value = '60';
-        document.getElementById('notes').value = '';
-        recordDetails = [];
-        renderDetails();
-        loadQuickExercises();
+// ---- 搜索 ----
+var _searchTimer;
+function bindSearchInput() {
+    var input = document.getElementById('exSearchInput');
+    if (input.dataset.bound) return;
+    input.dataset.bound = '1';
+    input.addEventListener('input', function() {
+        clearTimeout(_searchTimer);
+        var kw = this.value.trim();
+        if (!kw) { document.getElementById('exSearchResults').innerHTML = ''; return; }
+        _searchTimer = setTimeout(function() { searchEx(kw); }, 300);
+    });
+}
+
+async function searchEx(keyword) {
+    var container = document.getElementById('exSearchResults');
+    var result = await API.get('/exercise/api/list?keyword=' + encodeURIComponent(keyword));
+    if (result.code !== 200 || !result.data || !result.data.length) {
+        container.innerHTML = '<div class="list-group-item text-muted small">未找到匹配动作</div>';
+        return;
     }
+    container.innerHTML = result.data.map(function(ex) {
+        var cat = ex.category || '';
+        return '<div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-1 px-2">' +
+            '<div><small><span class="badge badge-' + catClass(cat) + ' me-1">' + cat + '</span>' + esc(ex.name) + '</small></div>' +
+            '<button class="btn btn-outline-primary btn-sm py-0" onclick="addFromSearch(' + ex.id + ')"><i class="bi bi-plus"></i></button>' +
+            '</div>';
+    }).join('');
+}
 
-    // 加载快捷动作列表
-    async function loadQuickExercises() {
-        const result = await API.get('/exercise/api/list');
-        if (result.code === 200) {
-            const container = document.getElementById('quickExerciseList');
-            container.innerHTML = (result.data || []).map(ex => `
-                <div class="col-6">
-                    <button class="btn btn-outline-secondary btn-sm w-100 text-start" onclick="quickAddExercise(${ex.id}, '${ex.name.replace(/'/g, "\\'")}')">
-                        <small><span class="badge badge-${getCategoryClass(ex.category)} me-1">${ex.category}</span> ${ex.name}</small>
-                    </button>
-                </div>
-            `).join('');
-        }
+function addFromSearch(exId) {
+    var ex = exMap[exId];
+    if (!ex) return;
+    if (recordDetails.find(function(d) { return d.exerciseId === exId; })) {
+        Toast.warning('该动作已在列表中');
+        return;
     }
+    recordDetails.push({
+        exerciseId: ex.id, exerciseName: ex.name, exerciseCategory: ex.category || '',
+        bodyPart: ex.category || '', sets: 3, reps: 12, weight: null, restSeconds: 60,
+        sortOrder: recordDetails.length + 1
+    });
+    renderDetails();
+    Toast.success('已添加: ' + ex.name);
+}
 
-    function getCategoryClass(cat) {
-        const map = { '胸部': 'chest', '背部': 'back', '肩部': 'shoulder', '手臂': 'arm', '腿部': 'leg', '核心': 'core' };
-        return map[cat] || 'core';
+// ---- 自定义动作 ----
+function addCustomEx() {
+    var name = document.getElementById('customExName').value.trim();
+    if (!name) { Toast.warning('请输入动作名称'); return; }
+    recordDetails.push({
+        exerciseId: null,
+        exerciseName: name,
+        exerciseCategory: document.getElementById('customExCat').value.trim() || document.getElementById('customExPart').value.trim(),
+        bodyPart: document.getElementById('customExPart').value.trim(),
+        sets: parseInt(document.getElementById('customExSets').value) || 3,
+        reps: parseInt(document.getElementById('customExReps').value) || 12,
+        weight: document.getElementById('customExWeight').value ? parseFloat(document.getElementById('customExWeight').value) : null,
+        restSeconds: parseInt(document.getElementById('customExRest').value) || 60,
+        sortOrder: recordDetails.length + 1
+    });
+    resetCustomForm();
+    toggleCustomPanel();
+    renderDetails();
+    Toast.success('已添加自定义动作: ' + name);
+}
+
+function resetCustomForm() {
+    document.getElementById('customExName').value = '';
+    document.getElementById('customExPart').value = '';
+    document.getElementById('customExCat').value = '';
+    document.getElementById('customExSets').value = '3';
+    document.getElementById('customExReps').value = '12';
+    document.getElementById('customExWeight').value = '';
+    document.getElementById('customExRest').value = '60';
+}
+
+// ---- 明细渲染 ----
+function renderDetails() {
+    var container = document.getElementById('detailContainer');
+    document.getElementById('detailCount').textContent = recordDetails.length ? '(' + recordDetails.length + '个动作)' : '';
+    if (!recordDetails.length) {
+        container.innerHTML = '<p class="text-muted text-center py-3">暂无训练动作，请搜索或自定义添加</p>';
+        return;
     }
+    container.innerHTML = recordDetails.map(function(d, i) {
+        var label = d.exerciseId
+            ? '<span class="badge badge-' + catClass(d.exerciseCategory) + ' me-1">' + (d.exerciseCategory || '') + '</span>' + esc(d.exerciseName)
+            : '<span class="badge bg-warning text-dark me-1">自定义</span>' + esc(d.exerciseName);
+        return '<div class="detail-row">' +
+            '<div class="flex-grow-1"><strong>' + label + '</strong>' +
+            (d.bodyPart ? '<br><small class="text-muted">部位: ' + esc(d.bodyPart) + '</small>' : '') + '</div>' +
+            '<div class="d-flex gap-2 align-items-center">' +
+            '<input type="number" class="form-control form-control-sm" style="width:50px" value="' + d.sets + '" min="1"' +
+            ' onchange="recordDetails[' + i + '].sets=parseInt(this.value)||3" title="组数"><span class="text-muted small">组</span>' +
+            '<input type="number" class="form-control form-control-sm" style="width:50px" value="' + d.reps + '" min="1"' +
+            ' onchange="recordDetails[' + i + '].reps=parseInt(this.value)||12" title="次数"><span class="text-muted small">次</span>' +
+            '<input type="number" class="form-control form-control-sm" style="width:55px" value="' + (d.weight || '') + '" step="0.5"' +
+            ' onchange="recordDetails[' + i + '].weight=this.value?parseFloat(this.value):null" title="重量(kg)"><span class="text-muted small">kg</span>' +
+            '<input type="number" class="form-control form-control-sm" style="width:45px" value="' + (d.restSeconds || '') + '" min="0"' +
+            ' onchange="recordDetails[' + i + '].restSeconds=parseInt(this.value)||null" title="休息秒"><span class="text-muted small">s</span>' +
+            '<button class="btn btn-outline-danger btn-sm" onclick="recordDetails.splice(' + i + ',1);renderDetails()"><i class="bi bi-x"></i></button>' +
+            '</div></div>';
+    }).join('');
+}
 
-    function quickAddExercise(id, name) {
-        if (!recordDetails.find(d => d.exerciseId === id)) {
-            recordDetails.push({ exerciseId: id, exerciseName: name, sets: 3, reps: 12, weight: null, sortOrder: recordDetails.length + 1 });
-            renderDetails();
-        }
-    }
-
-    function addDetailRow() {
-        recordDetails.push({ exerciseId: null, exerciseName: '', sets: 3, reps: 12, weight: null, sortOrder: recordDetails.length + 1 });
-        renderDetails();
-    }
-
-    function removeDetailRow(index) {
-        recordDetails.splice(index, 1);
-        renderDetails();
-    }
-
-    function renderDetails() {
-        const container = document.getElementById('detailContainer');
-        if (!recordDetails.length) {
-            container.innerHTML = '<p class="text-muted text-center py-3">暂无训练动作，请添加</p>';
-            return;
-        }
-        container.innerHTML = recordDetails.map((d, i) => `
-            <div class="detail-row">
-                <div class="flex-grow-1">
-                    <strong>${d.exerciseName || '选择动作'}</strong>
-                </div>
-                <div class="d-flex gap-2 align-items-center">
-                    <input type="number" class="form-control form-control-sm" style="width:60px" value="${d.sets}" min="1"
-                           onchange="recordDetails[${i}].sets = parseInt(this.value)" placeholder="组数" title="组数">
-                    <span class="text-muted">组</span>
-                    <input type="number" class="form-control form-control-sm" style="width:60px" value="${d.reps}" min="1"
-                           onchange="recordDetails[${i}].reps = parseInt(this.value)" placeholder="次数" title="每组次数">
-                    <span class="text-muted">次</span>
-                    <input type="number" class="form-control form-control-sm" style="width:70px" value="${d.weight || ''}" step="0.5"
-                           onchange="recordDetails[${i}].weight = this.value ? parseFloat(this.value) : null" placeholder="重量" title="重量(kg)">
-                    <span class="text-muted">kg</span>
-                    <button class="btn btn-outline-danger btn-sm" onclick="removeDetailRow(${i})"><i class="bi bi-x"></i></button>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    async function saveRecord() {
-        const record = {
-            trainDate: document.getElementById('trainDate').value,
-            duration: parseInt(document.getElementById('duration').value) || 0,
-            notes: document.getElementById('notes').value,
-            details: recordDetails.filter(d => d.exerciseId).map(d => ({
+// ---- 保存 ----
+async function saveRecord() {
+    var record = {
+        trainDate: document.getElementById('trainDate').value,
+        duration: parseInt(document.getElementById('duration').value) || 0,
+        notes: document.getElementById('notes').value,
+        details: recordDetails.filter(function(d) { return d.exerciseId || d.exerciseName; }).map(function(d) {
+            return {
                 exerciseId: d.exerciseId,
                 exerciseName: d.exerciseName,
                 setNumber: d.sets || 3,
                 reps: d.reps || 12,
                 weight: d.weight || null,
                 sortOrder: d.sortOrder || 0
-            }))
-        };
-        if (currentUserId) record.userId = currentUserId;
+            };
+        })
+    };
+    if (currentUserId) record.userId = currentUserId;
+    if (!record.trainDate) { Toast.warning('请选择训练日期'); return; }
+    if (!record.details.length) { Toast.warning('请添加至少一个训练动作'); return; }
 
-        if (!record.trainDate) { Toast.warning('请选择训练日期'); return; }
-        if (!record.details.length) { Toast.warning('请添加至少一个训练动作'); return; }
-
-        let result;
-        if (editingRecordId) {
-            record.id = editingRecordId;
-            result = await API.put('/training/api/' + editingRecordId, record);
-        } else {
-            result = await API.post('/training/api/create', record);
-        }
-
-        if (result.code === 200) {
-            Toast.success(result.message);
-            const modal = bootstrap.Modal.getInstance(document.getElementById('recordModal'));
-            modal.hide();
-            loadRecords();
-        } else {
-            Toast.error(result.message);
-        }
+    var result;
+    if (editingRecordId) {
+        record.id = editingRecordId;
+        result = await API.put('/training/api/' + editingRecordId, record);
+    } else {
+        result = await API.post('/training/api/create', record);
     }
-
-    async function editRecord(id) {
-        const result = await API.get('/training/api/' + id);
-        if (result.code === 200) {
-            const record = result.data;
-            editingRecordId = record.id;
-            document.getElementById('modalTitle').textContent = '编辑训练记录';
-            document.getElementById('recordId').value = record.id;
-            document.getElementById('trainDate').value = record.trainDate;
-            document.getElementById('duration').value = record.duration || 60;
-            document.getElementById('notes').value = record.notes || '';
-            recordDetails = (record.details || []).map(d => ({
-                id: d.id,
-                exerciseId: d.exerciseId,
-                exerciseName: d.exerciseName,
-                sets: d.setNumber || d.sets || 3,
-                reps: d.reps || 12,
-                weight: d.weight,
-                sortOrder: d.sortOrder || 0
-            }));
-            renderDetails();
-            loadQuickExercises();
-            new bootstrap.Modal(document.getElementById('recordModal')).show();
-        }
+    if (result.code === 200) {
+        Toast.success(result.message);
+        bootstrap.Modal.getInstance(document.getElementById('recordModal')).hide();
+        loadRecords();
+    } else {
+        Toast.error(result.message);
     }
+}
 
-    async function deleteRecord(id) {
-        if (!confirm('确定删除该训练记录吗？')) return;
-        const result = await API.delete('/training/api/' + id);
-        if (result.code === 200) {
-            Toast.success('删除成功');
-            loadRecords();
-        } else {
-            Toast.error(result.message);
-        }
+// ---- 记录列表 ----
+async function loadRecords() {
+    var startDate = document.getElementById('startDate').value;
+    var endDate = document.getElementById('endDate').value;
+    var url = '/training/api/list';
+    var params = [];
+    if (startDate) params.push('startDate=' + startDate);
+    if (endDate) params.push('endDate=' + endDate);
+    if (currentUserId) params.push('userId=' + currentUserId);
+    if (params.length) url += '?' + params.join('&');
+
+    var result = await API.get(url);
+    var container = document.getElementById('recordList');
+    var empty = document.getElementById('emptyState');
+    if (result.code !== 200 || !result.data || !result.data.length) {
+        container.innerHTML = '';
+        empty.style.display = 'block';
+        return;
     }
-
-    async function completeRecord(id) {
-        const result = await API.put('/training/api/' + id + '/complete');
-        if (result.code === 200) {
-            Toast.success('训练完成！');
-            loadRecords();
+    empty.style.display = 'none';
+    container.innerHTML = result.data.map(function(r) {
+        var badges = (r.details || []).map(function(d) {
+            return '<span class="badge bg-dark">' + (d.exerciseName || '动作') + ' ' + (d.setNumber || d.sets || 0) + '组x' + d.reps + '次' + (d.weight ? ' ' + d.weight + 'kg' : '') + '</span>';
+        }).join('');
+        var actions = '';
+        if (!isGuest) {
+            actions = '<div class="d-flex gap-1 flex-shrink-0 ms-3">' +
+                (!r.isCompleted ? '<button class="btn btn-success btn-sm" onclick="completeRecord(' + r.id + ')"><i class="bi bi-check-lg"></i></button>' : '') +
+                '<button class="btn btn-outline-secondary btn-sm" onclick="copyRecord(' + r.id + ')"><i class="bi bi-copy"></i></button>' +
+                '<button class="btn btn-outline-secondary btn-sm" onclick="editRecord(' + r.id + ')"><i class="bi bi-pencil"></i></button>' +
+                '<button class="btn btn-outline-danger btn-sm" onclick="deleteRecord(' + r.id + ')"><i class="bi bi-trash"></i></button></div>';
         }
-    }
+        return '<div class="record-item' + (r.isCompleted ? ' completed' : '') + '">' +
+            '<div class="d-flex justify-content-between align-items-start">' +
+            '<div class="flex-grow-1">' +
+            '<div class="d-flex align-items-center gap-2 mb-2">' +
+            '<h5 class="mb-0">' + DateUtil.formatCN(r.trainDate) + '</h5>' +
+            (r.isCompleted ? '<span class="badge bg-success">已完成</span>' : '<span class="badge bg-secondary">进行中</span>') +
+            '</div>' +
+            '<p class="text-muted small mb-1">时长: ' + (r.duration || 0) + '分钟 | 总组数: ' + (r.totalSets || 0) + ' | 总次数: ' + (r.totalReps || 0) + '</p>' +
+            '<p class="text-muted small mb-1">' + (r.notes || '') + '</p>' +
+            '<div class="d-flex flex-wrap gap-1 mt-2">' + badges + '</div>' +
+            '</div>' + actions + '</div></div>';
+    }).join('');
+}
 
-    async function copyRecord(id) {
-        const result = await API.post('/training/api/' + id + '/copy');
-        if (result.code === 200) {
-            Toast.success('复制成功');
-            loadRecords();
-        }
-    }
-
+function clearFilter() {
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
     loadRecords();
+}
+
+function openCreateModal() {
+    editingRecordId = null;
+    document.getElementById('modalTitle').textContent = '新增训练记录';
+    document.getElementById('recordId').value = '';
+    document.getElementById('trainDate').value = DateUtil.today();
+    document.getElementById('duration').value = '60';
+    document.getElementById('notes').value = '';
+    recordDetails = [];
+    resetPanels();
+    loadFromLocal('trainingList', '已从动作库导入 ');
+    loadFromLocal('appliedPlan', '已加载训练计划模板 ');
+    renderDetails();
+    loadExerciseCache();
+}
+
+function loadFromLocal(key, prefix) {
+    var list = LocalStore.get(key, []);
+    if (!list.length) return;
+    list.forEach(function(item) {
+        if (!recordDetails.find(function(d) { return d.exerciseId === item.exerciseId && item.exerciseId; })) {
+            recordDetails.push({
+                exerciseId: item.exerciseId,
+                exerciseName: item.exerciseName,
+                exerciseCategory: item.exerciseCategory || '',
+                bodyPart: item.bodyPart || item.exerciseCategory || '',
+                sets: item.sets || 3, reps: item.reps || 12,
+                weight: item.weight || null, restSeconds: item.restSeconds || 60,
+                notes: item.notes || '', sortOrder: recordDetails.length + 1
+            });
+        }
+    });
+    LocalStore.remove(key);
+    Toast.success(prefix + list.length + ' 个动作');
+}
+
+async function editRecord(id) {
+    var result = await API.get('/training/api/' + id);
+    if (result.code !== 200) return;
+    var r = result.data;
+    editingRecordId = r.id;
+    document.getElementById('modalTitle').textContent = '编辑训练记录';
+    document.getElementById('recordId').value = r.id;
+    document.getElementById('trainDate').value = r.trainDate;
+    document.getElementById('duration').value = r.duration || 60;
+    document.getElementById('notes').value = r.notes || '';
+    recordDetails = (r.details || []).map(function(d) {
+        return {
+            id: d.id, exerciseId: d.exerciseId, exerciseName: d.exerciseName,
+            exerciseCategory: d.exerciseCategory || '',
+            bodyPart: d.exerciseCategory || '',
+            sets: d.setNumber || d.sets || 3, reps: d.reps || 12,
+            weight: d.weight, restSeconds: d.restSeconds || null,
+            sortOrder: d.sortOrder || 0
+        };
+    });
+    resetPanels();
+    renderDetails();
+    loadExerciseCache();
+    new bootstrap.Modal(document.getElementById('recordModal')).show();
+}
+
+async function deleteRecord(id) {
+    if (!confirm('确定删除该训练记录吗？')) return;
+    var result = await API.delete('/training/api/' + id);
+    if (result.code === 200) { Toast.success('删除成功'); loadRecords(); }
+    else Toast.error(result.message);
+}
+
+async function completeRecord(id) {
+    var result = await API.put('/training/api/' + id + '/complete');
+    if (result.code === 200) { Toast.success('训练完成！'); loadRecords(); }
+}
+
+async function copyRecord(id) {
+    var result = await API.post('/training/api/' + id + '/copy');
+    if (result.code === 200) { Toast.success('复制成功'); loadRecords(); }
+}
+
+// ---- 工具函数 ----
+function esc(text) {
+    if (!text) return '';
+    var d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
+}
+
+function catClass(cat) {
+    var map = { '胸部':'chest','背部':'back','肩部':'shoulder','手臂':'arm','腿部':'leg','核心':'core' };
+    return map[cat] || 'core';
+}
 </script>
 </body>
 </html>

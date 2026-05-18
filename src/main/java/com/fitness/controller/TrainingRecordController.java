@@ -4,6 +4,7 @@ import com.fitness.common.Result;
 import com.fitness.entity.TrainingRecord;
 import com.fitness.entity.TrainingRecordDetail;
 import com.fitness.entity.User;
+import com.fitness.exception.BusinessException;
 import com.fitness.service.TrainingRecordService;
 import com.fitness.util.DateUtils;
 import org.springframework.stereotype.Controller;
@@ -33,10 +34,20 @@ public class TrainingRecordController {
         return loginUser.getId();
     }
 
-    /** 训练记录主页 */
+    /** 检查数据所有权：普通用户只能操作自己的数据 */
+    private void checkOwnership(TrainingRecord record, HttpSession session) {
+        Long currentUserId = getCurrentUserId(session);
+        if (currentUserId != null) {
+            if (record.getUserId() == null || !currentUserId.equals(record.getUserId())) {
+                throw new BusinessException("无权操作此训练记录");
+            }
+        }
+    }
+
+    /** 训练记录主页（SPA 路由） */
     @GetMapping("/record")
     public String recordPage() {
-        return "training/record";
+        return "redirect:/training/";
     }
 
     /** API：查询训练记录（普通用户仅看自己的，管理员可看全部） */
@@ -55,7 +66,7 @@ public class TrainingRecordController {
         if (startDate != null || endDate != null) {
             LocalDate start = startDate != null ? DateUtils.parseDate(startDate) : null;
             LocalDate end = endDate != null ? DateUtils.parseDate(endDate) : null;
-            records = trainingRecordService.listByDateRange(start, end);
+            records = trainingRecordService.listByDateRange(start, end, userId);
         } else {
             records = trainingRecordService.listAll(userId);
         }
@@ -85,7 +96,9 @@ public class TrainingRecordController {
     /** API：更新训练记录 */
     @PutMapping("/api/{id}")
     @ResponseBody
-    public Result update(@PathVariable Long id, @RequestBody TrainingRecord record) {
+    public Result update(@PathVariable Long id, @RequestBody TrainingRecord record, HttpSession session) {
+        TrainingRecord existing = trainingRecordService.getById(id);
+        checkOwnership(existing, session);
         record.setId(id);
         TrainingRecord updated = trainingRecordService.update(record);
         return Result.success("更新成功", updated);
@@ -94,7 +107,9 @@ public class TrainingRecordController {
     /** API：删除训练记录 */
     @DeleteMapping("/api/{id}")
     @ResponseBody
-    public Result delete(@PathVariable Long id) {
+    public Result delete(@PathVariable Long id, HttpSession session) {
+        TrainingRecord existing = trainingRecordService.getById(id);
+        checkOwnership(existing, session);
         trainingRecordService.delete(id);
         return Result.success("删除成功");
     }
@@ -102,7 +117,9 @@ public class TrainingRecordController {
     /** API：复制训练记录 */
     @PostMapping("/api/{id}/copy")
     @ResponseBody
-    public Result copy(@PathVariable Long id) {
+    public Result copy(@PathVariable Long id, HttpSession session) {
+        TrainingRecord existing = trainingRecordService.getById(id);
+        checkOwnership(existing, session);
         TrainingRecord copied = trainingRecordService.copy(id);
         return Result.success("复制成功", copied);
     }
@@ -110,7 +127,9 @@ public class TrainingRecordController {
     /** API：标记训练完成 */
     @PutMapping("/api/{id}/complete")
     @ResponseBody
-    public Result markCompleted(@PathVariable Long id) {
+    public Result markCompleted(@PathVariable Long id, HttpSession session) {
+        TrainingRecord existing = trainingRecordService.getById(id);
+        checkOwnership(existing, session);
         trainingRecordService.markCompleted(id);
         return Result.success("已标记完成");
     }

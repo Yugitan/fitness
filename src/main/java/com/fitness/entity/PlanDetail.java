@@ -40,6 +40,9 @@ public class PlanDetail extends BaseEntity {
     /** 关联的动作分类（非数据库字段） */
     private String exerciseCategory;
 
+    /** 训练部位（非数据库字段） */
+    private String bodyPart;
+
     // ========== Getter/Setter ==========
 
     public Long getPlanId() { return planId; }
@@ -74,4 +77,7 @@ public class PlanDetail extends BaseEntity {
 
     public String getExerciseCategory() { return exerciseCategory; }
     public void setExerciseCategory(String exerciseCategory) { this.exerciseCategory = exerciseCategory; }
+
+    public String getBodyPart() { return bodyPart; }
+    public void setBodyPart(String bodyPart) { this.bodyPart = bodyPart; }
 }

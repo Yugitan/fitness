@@ -18,26 +18,22 @@ public class BloggerController {
     @Resource
     private BloggerService bloggerService;
 
-    /** 博主列表页 */
+    /** 博主列表页（SPA 路由） */
     @GetMapping("/list")
     public String listPage(Model model) {
-        model.addAttribute("bloggers", bloggerService.listAll());
-        return "blogger/list";
+        return "redirect:/blogger/";
     }
 
-    /** 博主详情页 */
-    @GetMapping("/{id}")
+    /** 博主详情页（SPA 路由） */
+    @GetMapping("/{id:[0-9]+}")
     public String detail(@PathVariable Long id, Model model) {
-        model.addAttribute("blogger", bloggerService.getById(id));
-        model.addAttribute("plans", bloggerService.listPlansByBloggerId(id));
-        return "blogger/detail";
+        return "redirect:/blogger/" + id + "/";
     }
 
-    /** 博主计划详情页 */
-    @GetMapping("/plan/{id}")
+    /** 博主计划详情页（SPA 路由） */
+    @GetMapping("/plan/{id:[0-9]+}")
     public String planDetail(@PathVariable Long id, Model model) {
-        model.addAttribute("plan", bloggerService.getPlanById(id));
-        return "blogger/plan";
+        return "redirect:/blogger/plan/" + id + "/";
     }
 
     /** API：博主列表 */

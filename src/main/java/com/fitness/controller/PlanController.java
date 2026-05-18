@@ -5,6 +5,7 @@ import com.fitness.entity.Plan;
 import com.fitness.entity.PlanDetail;
 import com.fitness.entity.PlanGroup;
 import com.fitness.entity.User;
+import com.fitness.exception.BusinessException;
 import com.fitness.service.PlanService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -32,18 +33,26 @@ public class PlanController {
         return loginUser.getId();
     }
 
-    /** 计划创建/编辑页面 */
-    @GetMapping("/create")
-    public String createPage(Model model, HttpSession session) {
-        model.addAttribute("groups", planService.listGroups(getCurrentUserId(session)));
-        return "plan/create";
+    /** 检查数据所有权：普通用户只能操作自己的数据 */
+    private void checkOwnership(Plan plan, HttpSession session) {
+        Long currentUserId = getCurrentUserId(session);
+        if (currentUserId != null) {
+            if (plan.getUserId() == null || !currentUserId.equals(plan.getUserId())) {
+                throw new BusinessException("无权操作此计划");
+            }
+        }
     }
 
-    /** 计划详情页 */
-    @GetMapping("/{id}")
+    /** 计划创建/编辑页面（SPA 路由） */
+    @GetMapping("/create")
+    public String createPage(Model model, HttpSession session) {
+        return "redirect:/plan/";
+    }
+
+    /** 计划详情页（SPA 路由） */
+    @GetMapping("/{id:[0-9]+}")
     public String detail(@PathVariable Long id, Model model) {
-        model.addAttribute("plan", planService.getById(id));
-        return "plan/detail";
+        return "redirect:/plan/";
     }
 
     /** API：查询计划（普通用户仅看自己的，管理员可看全部） */
@@ -88,7 +97,9 @@ public class PlanController {
     /** API：更新计划 */
     @PutMapping("/api/{id}")
     @ResponseBody
-    public Result update(@PathVariable Long id, @RequestBody Plan plan) {
+    public Result update(@PathVariable Long id, @RequestBody Plan plan, HttpSession session) {
+        Plan existing = planService.getById(id);
+        checkOwnership(existing, session);
         plan.setId(id);
         Plan updated = planService.update(plan, plan.getDetails());
         return Result.success("更新成功", updated);
@@ -97,7 +108,9 @@ public class PlanController {
     /** API：删除计划 */
     @DeleteMapping("/api/{id}")
     @ResponseBody
-    public Result delete(@PathVariable Long id) {
+    public Result delete(@PathVariable Long id, HttpSession session) {
+        Plan existing = planService.getById(id);
+        checkOwnership(existing, session);
         planService.delete(id);
         return Result.success("删除成功");
     }
@@ -105,7 +118,9 @@ public class PlanController {
     /** API：复制计划 */
     @PostMapping("/api/{id}/copy")
     @ResponseBody
-    public Result copy(@PathVariable Long id) {
+    public Result copy(@PathVariable Long id, HttpSession session) {
+        Plan existing = planService.getById(id);
+        checkOwnership(existing, session);
         Plan copied = planService.copy(id);
         return Result.success("复制成功", copied);
     }

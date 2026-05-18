@@ -13,10 +13,10 @@ import org.springframework.web.bind.annotation.ResponseBody;
 @RequestMapping("/statistics")
 public class StatisticsController {
 
-    /** 数据统计页面 */
+    /** 数据统计页面（SPA 路由） */
     @GetMapping
     public String statisticsPage() {
-        return "statistics";
+        return "redirect:/statistics/";
     }
 
     /** API：个人训练统计（预留） */
