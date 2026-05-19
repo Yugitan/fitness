@@ -1,6 +1,5 @@
 'use client';
 
-import { use } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { get } from '@/lib/api';
@@ -11,8 +10,7 @@ import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/shared/Skeleton';
 import { ArrowLeft, Lightbulb, AlertTriangle, Eye, ChevronRight } from 'lucide-react';
 
-export function ExerciseDetailContent({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export function ExerciseDetailContent({ id }: { id: string }) {
 
   const { data: exercise, isLoading } = useQuery({
     queryKey: ['exercise', id],

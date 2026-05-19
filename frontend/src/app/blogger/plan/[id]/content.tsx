@@ -1,6 +1,5 @@
 'use client';
 
-import { use } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { get } from '@/lib/api';
@@ -12,8 +11,7 @@ import { Skeleton } from '@/components/shared/Skeleton';
 import { getDifficultyLabel, getDifficultyColor } from '@/lib/utils';
 import { ArrowLeft, Calendar, Target, Video, Users, Dumbbell, Clock, ExternalLink } from 'lucide-react';
 
-export function BloggerPlanDetailContent({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export function BloggerPlanDetailContent({ id }: { id: string }) {
 
   const { data: plan, isLoading } = useQuery({
     queryKey: ['blogger-plan', id],

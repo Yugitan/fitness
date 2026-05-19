@@ -50,7 +50,11 @@ public class PlanServiceImpl implements PlanService {
 
     @Override
     public List<Plan> listByGroupId(Long groupId, Long userId) {
-        return planMapper.selectByGroupId(groupId, userId);
+        List<Plan> plans = planMapper.selectByGroupId(groupId, userId);
+        for (Plan plan : plans) {
+            plan.setDetails(planDetailMapper.selectByPlanId(plan.getId()));
+        }
+        return plans;
     }
 
     @Override

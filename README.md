@@ -214,3 +214,7 @@ mvn clean package -Dmaven.test.skip=true -U
 - 清除浏览器缓存（Ctrl+F5 强制刷新）
 - 确认 `src/main/resources/static/_next/` 目录存在
 - 确认 WAR 包完整部署
+
+### 6. 开发时控制台 `params are being enumerated`
+
+仅 `npm run dev` + Cursor 元素检查时可能出现的开发环境提示，**不影响生产构建**。处理办法与说明见 [启动教程.md — 常见问题](启动教程.md#开发时控制台出现-params-are-being-enumerated)。

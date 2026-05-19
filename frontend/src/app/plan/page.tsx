@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { get, post, put, del } from '@/lib/api';
@@ -8,6 +8,14 @@ import type { Plan, PlanGroup, PlanDetail, Exercise } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useGuestMode } from '@/hooks/useGuestMode';
 import { getDifficultyLabel, getDifficultyColor } from '@/lib/utils';
+import {
+  parseDetailNumericField,
+  sanitizeDetailNumericInput,
+  validateDetailNumericField,
+  validateDetailNumericRows,
+  type DetailNumericField,
+} from '@/lib/numeric-field';
+import { NumericFieldInput } from '@/components/shared/NumericFieldInput';
 import { Card, CardTitle, CardDescription, CardFooter } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -18,6 +26,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { CardSkeleton } from '@/components/shared/Skeleton';
 import { AuthGuard } from '@/components/shared/AuthGuard';
+import { ListPagination, PLAN_PAGE_SIZE } from '@/components/shared/ListPagination';
 import { toast } from 'sonner';
 import {
   Plus,
@@ -36,6 +45,41 @@ import {
   Minus,
 } from 'lucide-react';
 
+function groupPlanDetailsByDay(details: PlanDetail[]) {
+  const map = new Map<number, PlanDetail[]>();
+  for (const d of details) {
+    const day = d.dayNumber || 1;
+    if (!map.has(day)) map.set(day, []);
+    map.get(day)!.push(d);
+  }
+  return [...map.entries()].sort((a, b) => a[0] - b[0]);
+}
+
+type PlanNumericField = Exclude<DetailNumericField, 'setNumber'>;
+type PlanDetailInputRow = Record<PlanNumericField, string>;
+type PlanDetailErrors = Partial<Record<PlanNumericField, string>>;
+
+const PLAN_NUMERIC_FIELDS: PlanNumericField[] = ['dayNumber', 'sets', 'reps', 'weight'];
+
+function planDetailToInputs(d: PlanDetail): PlanDetailInputRow {
+  return {
+    dayNumber: String(d.dayNumber ?? ''),
+    sets: String(d.sets ?? ''),
+    reps: String(d.reps ?? ''),
+    weight: d.weight != null && d.weight > 0 ? String(d.weight) : '',
+  };
+}
+
+function syncDetailsFromInputs(details: PlanDetail[], rows: PlanDetailInputRow[]): PlanDetail[] {
+  return details.map((d, i) => ({
+    ...d,
+    dayNumber: parseDetailNumericField('dayNumber', rows[i]?.dayNumber ?? ''),
+    sets: parseDetailNumericField('sets', rows[i]?.sets ?? ''),
+    reps: parseDetailNumericField('reps', rows[i]?.reps ?? ''),
+    weight: parseDetailNumericField('weight', rows[i]?.weight ?? ''),
+  }));
+}
+
 export default function PlanListPage() {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -45,13 +89,31 @@ export default function PlanListPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [viewingPlan, setViewingPlan] = useState<Plan | null>(null);
+  const [viewingPlanLoading, setViewingPlanLoading] = useState(false);
+  const [page, setPage] = useState(1);
+
+  const openPlanDetail = async (plan: Plan) => {
+    if (!plan.id) return;
+    setViewingPlan(plan);
+    setViewingPlanLoading(true);
+    try {
+      const full = await get<Plan>(`/plan/api/${plan.id}`);
+      setViewingPlan(full);
+    } catch {
+      toast.error('加载计划详情失败');
+      setViewingPlan(null);
+    } finally {
+      setViewingPlanLoading(false);
+    }
+  };
 
   const { data: plans, isLoading } = useQuery({
     queryKey: ['plans', activeGroupId],
     queryFn: () => {
-      const params: Record<string, unknown> = {};
-      if (activeGroupId) params.groupId = activeGroupId;
-      return get<Plan[]>('/plan/api/list', params);
+      const query: Record<string, unknown> = {};
+      if (activeGroupId) query.groupId = activeGroupId;
+      return get<Plan[]>('/plan/api/list', query);
     },
   });
 
@@ -65,6 +127,29 @@ export default function PlanListPage() {
     queryFn: () => get<Exercise[]>('/exercise/api/list'),
     staleTime: 60000,
   });
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeGroupId]);
+
+  const total = plans?.length ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PLAN_PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const pagedPlans = useMemo(() => {
+    if (!plans?.length) return [];
+    const start = (currentPage - 1) * PLAN_PAGE_SIZE;
+    return plans.slice(start, start + PLAN_PAGE_SIZE);
+  }, [plans, currentPage]);
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(nextPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => del(`/plan/api/${id}`),
@@ -103,7 +188,13 @@ export default function PlanListPage() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
         <div>
           <h1 className="font-display text-4xl text-text mb-2">训练计划</h1>
-          <p className="text-text-muted">预置多套训练计划，一键套用生成训练清单</p>
+          <p className="text-text-muted">
+            {isLoading
+              ? '加载中...'
+              : total > 0
+                ? `共 ${total} 个计划，一键套用生成训练清单`
+                : '预置多套训练计划，一键套用生成训练清单'}
+          </p>
         </div>
         <Button onClick={() => setFormOpen(true)} className="gap-2" disabled={!canWrite}>
           <Plus size={18} />
@@ -143,14 +234,15 @@ export default function PlanListPage() {
       {/* Plans grid */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: PLAN_PAGE_SIZE }).map((_, i) => (
             <CardSkeleton key={i} />
           ))}
         </div>
       ) : plans && plans.length > 0 ? (
+        <>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {plans.map((plan, i) => (
-            <Card key={plan.id} className="animate-slide-up group" style={{ animationDelay: `${i * 60}ms` }}>
+          {pagedPlans.map((plan, i) => (
+            <Card key={plan.id} hover={false} className="animate-slide-up" style={{ animationDelay: `${i * 60}ms` }}>
               <div className="flex items-start justify-between mb-2">
                 <div className="flex gap-2">
                   {plan.groupName && <Badge variant="muted">{plan.groupName}</Badge>}
@@ -159,28 +251,35 @@ export default function PlanListPage() {
                   </span>
                 </div>
               </div>
-              <CardTitle className="group-hover:text-primary-light transition-colors">{plan.title}</CardTitle>
-              <CardDescription className="line-clamp-2 mt-1">
-                {plan.description || '暂无描述'}
-              </CardDescription>
+              <button
+                type="button"
+                onClick={() => openPlanDetail(plan)}
+                className="w-full text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-lg"
+              >
+                <CardTitle>{plan.title}</CardTitle>
+                <CardDescription className="line-clamp-2 mt-1">
+                  {plan.description || '暂无描述'}
+                </CardDescription>
 
-              {/* Plan details preview */}
-              {plan.details && plan.details.length > 0 && (
-                <div className="mt-3 space-y-1">
-                  {plan.details.slice(0, 3).map((d, j) => (
-                    <div key={j} className="flex items-center gap-2 text-xs text-text-muted">
-                      <span className="w-5 h-5 rounded bg-surface-hover flex items-center justify-center text-[10px] font-medium">
-                        D{d.dayNumber}
-                      </span>
-                      <span>{d.exerciseName || `动作 #${d.exerciseId}`}</span>
-                      <span className="text-text-dim">{d.sets}×{d.reps}</span>
-                    </div>
-                  ))}
-                  {plan.details.length > 3 && (
-                    <p className="text-xs text-text-dim pl-7">+{plan.details.length - 3} 个动作</p>
-                  )}
-                </div>
-              )}
+                {plan.details && plan.details.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {plan.details.slice(0, 3).map((d, j) => (
+                      <div key={j} className="flex items-center gap-2 text-xs text-text-muted">
+                        <span className="w-5 h-5 rounded bg-surface-hover flex items-center justify-center text-[10px] font-medium">
+                          D{d.dayNumber}
+                        </span>
+                        <span>{d.exerciseName || `动作 #${d.exerciseId}`}</span>
+                        <span className="text-text-dim">{d.sets}×{d.reps}</span>
+                      </div>
+                    ))}
+                    {plan.details.length > 3 && (
+                      <p className="text-xs text-text-dim pl-7 mt-1">
+                        +{plan.details.length - 3} 个动作
+                      </p>
+                    )}
+                  </div>
+                )}
+              </button>
 
               <CardFooter>
                 <div className="flex items-center gap-1 ml-auto">
@@ -229,6 +328,15 @@ export default function PlanListPage() {
             </Card>
           ))}
         </div>
+
+        <ListPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          total={total}
+          onPageChange={handlePageChange}
+          itemLabel="个计划"
+        />
+        </>
       ) : (
         <EmptyState
           icon={<ClipboardList size={48} />}
@@ -277,8 +385,147 @@ export default function PlanListPage() {
         onCancel={() => setDeleteConfirm(null)}
         loading={deleteMutation.isPending}
       />
+
+      {viewingPlan && (
+        <PlanDetailViewDialog
+          plan={viewingPlan}
+          loading={viewingPlanLoading}
+          onClose={() => setViewingPlan(null)}
+          onApply={() => {
+            applyMutation.mutate(viewingPlan.id!);
+            setViewingPlan(null);
+          }}
+          onEdit={
+            canWrite
+              ? () => {
+                  setEditingPlan(viewingPlan);
+                  setFormOpen(true);
+                  setViewingPlan(null);
+                }
+              : undefined
+          }
+          applying={applyMutation.isPending}
+        />
+      )}
     </div>
     </AuthGuard>
+  );
+}
+
+// ============ Plan Detail View Dialog ============
+function PlanDetailViewDialog({
+  plan,
+  loading,
+  onClose,
+  onApply,
+  onEdit,
+  applying,
+}: {
+  plan: Plan;
+  loading?: boolean;
+  onClose: () => void;
+  onApply: () => void;
+  onEdit?: () => void;
+  applying?: boolean;
+}) {
+  const dayGroups = groupPlanDetailsByDay(plan.details || []);
+  const exerciseCount = plan.details?.length ?? 0;
+
+  return (
+    <Dialog open onClose={onClose} title={plan.title} size="lg">
+      <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
+        <div className="flex flex-wrap gap-2">
+          {plan.groupName && <Badge variant="muted">{plan.groupName}</Badge>}
+          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getDifficultyColor(plan.difficultyLevel)}`}>
+            {getDifficultyLabel(plan.difficultyLevel)}
+          </span>
+          {plan.targetBodyPart && (
+            <Badge variant="outline" className="gap-1">
+              <Target size={12} />
+              {plan.targetBodyPart}
+            </Badge>
+          )}
+          {exerciseCount > 0 && (
+            <Badge variant="outline">{exerciseCount} 个动作</Badge>
+          )}
+        </div>
+
+        {plan.description && (
+          <p className="text-sm text-text-muted leading-relaxed">{plan.description}</p>
+        )}
+
+        {loading ? (
+          <div className="space-y-3 py-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <CardSkeleton key={i} />
+            ))}
+          </div>
+        ) : dayGroups.length > 0 ? (
+          <div className="space-y-4">
+            {dayGroups.map(([day, items]) => (
+              <div key={day} className="rounded-xl border border-surface-border bg-surface-hover/30 overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-surface-border bg-surface-hover/50 flex items-center gap-2">
+                  <Calendar size={14} className="text-primary" />
+                  <span className="text-sm font-medium text-text">训练日 {day}</span>
+                  <span className="text-xs text-text-dim ml-auto">{items.length} 个动作</span>
+                </div>
+                <ul className="divide-y divide-surface-border">
+                  {items.map((d, idx) => (
+                    <li key={d.id ?? `${day}-${idx}`} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-text">
+                          {d.exerciseName || `动作 #${d.exerciseId}`}
+                        </p>
+                        {d.exerciseCategory && (
+                          <p className="text-xs text-text-dim mt-0.5">{d.exerciseCategory}</p>
+                        )}
+                        {d.notes && (
+                          <p className="text-xs text-text-muted mt-1">{d.notes}</p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 text-sm text-text-muted shrink-0">
+                        <span>
+                          <strong className="text-text">{d.sets}</strong> 组 ×{' '}
+                          <strong className="text-text">{d.reps}</strong> 次
+                        </span>
+                        {d.weight != null && d.weight > 0 && (
+                          <span>{d.weight} kg</span>
+                        )}
+                        {d.restSeconds != null && d.restSeconds > 0 && (
+                          <span className="text-text-dim">休息 {d.restSeconds}s</span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={<ClipboardList size={40} />}
+            title="暂无动作编排"
+            description="该计划尚未添加训练动作"
+          />
+        )}
+
+        <div className="flex flex-wrap gap-3 justify-end pt-2 border-t border-surface-border sticky bottom-0 bg-surface">
+          <Button type="button" variant="outline" onClick={onClose}>
+            关闭
+          </Button>
+          {onEdit && (
+            <Button type="button" variant="ghost" onClick={onEdit} className="gap-1">
+              <Edit3 size={16} />
+              编辑
+            </Button>
+          )}
+          <Button type="button" variant="accent" onClick={onApply} disabled={applying} className="gap-1">
+            <Play size={16} />
+            {applying ? '套用中...' : '套用此计划'}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
   );
 }
 
@@ -303,21 +550,63 @@ function PlanFormDialog({
   const [groupId, setGroupId] = useState(plan?.groupId || (groups[0]?.id ?? 0));
   const [difficultyLevel, setDifficultyLevel] = useState(plan?.difficultyLevel || 1);
   const [targetBodyPart, setTargetBodyPart] = useState(plan?.targetBodyPart || '');
-  const [details, setDetails] = useState<PlanDetail[]>(
-    plan?.details?.length
-      ? plan.details.map((d) => ({ ...d }))
-      : [{ dayNumber: 1, sets: 3, reps: 12, exerciseId: undefined, exerciseName: '' }]
+  const initialDetails: PlanDetail[] = plan?.details?.length
+    ? plan.details.map((d) => ({ ...d }))
+    : [{ dayNumber: 1, sets: 3, reps: 12, weight: 0, exerciseId: undefined, exerciseName: '' }];
+
+  const [details, setDetails] = useState<PlanDetail[]>(initialDetails);
+  const [detailInputs, setDetailInputs] = useState<PlanDetailInputRow[]>(() =>
+    initialDetails.map(planDetailToInputs)
   );
+  const [detailErrors, setDetailErrors] = useState<Record<number, PlanDetailErrors>>({});
   const [saving, setSaving] = useState(false);
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState<number | null>(null);
 
   const handleAddRow = () => {
-    setDetails([...details, { dayNumber: details.length + 1, sets: 3, reps: 12, exerciseId: undefined, exerciseName: '' }]);
+    setDetails([...details, { dayNumber: details.length + 1, sets: 3, reps: 12, weight: 0, exerciseId: undefined, exerciseName: '' }]);
+    setDetailInputs([...detailInputs, { dayNumber: String(details.length + 1), sets: '3', reps: '12', weight: '' }]);
+    setDetailErrors({});
   };
 
   const handleRemoveRow = (index: number) => {
     setDetails(details.filter((_, i) => i !== index));
+    setDetailInputs(detailInputs.filter((_, i) => i !== index));
+    setDetailErrors((prev) => {
+      const next: Record<number, PlanDetailErrors> = {};
+      Object.entries(prev).forEach(([key, val]) => {
+        const i = Number(key);
+        if (i < index) next[i] = val;
+        else if (i > index) next[i - 1] = val;
+      });
+      return next;
+    });
+  };
+
+  const handleNumericInputChange = (index: number, field: PlanNumericField, raw: string) => {
+    const sanitized = sanitizeDetailNumericInput(field, raw);
+    setDetailInputs((prev) =>
+      prev.map((row, i) => (i === index ? { ...row, [field]: sanitized } : row))
+    );
+    const err = validateDetailNumericField(field, sanitized, {
+      allowPartial: field === 'weight',
+    });
+    setDetailErrors((prev) => ({
+      ...prev,
+      [index]: { ...prev[index], [field]: err },
+    }));
+    if (!err) {
+      handleDetailChange(index, field, parseDetailNumericField(field, sanitized));
+    }
+  };
+
+  const handleNumericBlur = (index: number, field: PlanNumericField) => {
+    const value = detailInputs[index]?.[field] ?? '';
+    const err = validateDetailNumericField(field, value, { allowPartial: false });
+    setDetailErrors((prev) => ({
+      ...prev,
+      [index]: { ...prev[index], [field]: err },
+    }));
   };
 
   const handleDetailChange = (index: number, field: keyof PlanDetail, value: unknown) => {
@@ -332,6 +621,13 @@ function PlanFormDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const { valid, errors } = validateDetailNumericRows(detailInputs, PLAN_NUMERIC_FIELDS);
+    setDetailErrors(errors);
+    if (!valid) {
+      toast.error('请修正动作编排中的数字输入');
+      return;
+    }
+    const syncedDetails = syncDetailsFromInputs(details, detailInputs);
     setSaving(true);
     try {
       await onSave({
@@ -340,7 +636,7 @@ function PlanFormDialog({
         groupId: groupId || undefined,
         difficultyLevel,
         targetBodyPart,
-        details: details.map((d, i) => ({ ...d, sortOrder: i + 1 })),
+        details: syncedDetails.map((d, i) => ({ ...d, sortOrder: i + 1 })),
       });
     } finally {
       setSaving(false);
@@ -461,47 +757,38 @@ function PlanFormDialog({
               </div>
 
               <div className="grid grid-cols-4 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">训练日</Label>
-                  <Input
-                    type="number"
-                    value={detail.dayNumber}
-                    onChange={(e) => handleDetailChange(index, 'dayNumber', Number(e.target.value))}
-                    min={1}
-                    className="h-8"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">组数</Label>
-                  <Input
-                    type="number"
-                    value={detail.sets}
-                    onChange={(e) => handleDetailChange(index, 'sets', Number(e.target.value))}
-                    min={1}
-                    className="h-8"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">次数</Label>
-                  <Input
-                    type="number"
-                    value={detail.reps}
-                    onChange={(e) => handleDetailChange(index, 'reps', Number(e.target.value))}
-                    min={1}
-                    className="h-8"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">负重 (kg)</Label>
-                  <Input
-                    type="number"
-                    value={detail.weight || 0}
-                    onChange={(e) => handleDetailChange(index, 'weight', Number(e.target.value))}
-                    min={0}
-                    step={2.5}
-                    className="h-8"
-                  />
-                </div>
+                <NumericFieldInput
+                  label="训练日"
+                  field="dayNumber"
+                  value={detailInputs[index]?.dayNumber ?? ''}
+                  error={detailErrors[index]?.dayNumber}
+                  onChange={(v) => handleNumericInputChange(index, 'dayNumber', v)}
+                  onBlur={() => handleNumericBlur(index, 'dayNumber')}
+                />
+                <NumericFieldInput
+                  label="组数"
+                  field="sets"
+                  value={detailInputs[index]?.sets ?? ''}
+                  error={detailErrors[index]?.sets}
+                  onChange={(v) => handleNumericInputChange(index, 'sets', v)}
+                  onBlur={() => handleNumericBlur(index, 'sets')}
+                />
+                <NumericFieldInput
+                  label="次数"
+                  field="reps"
+                  value={detailInputs[index]?.reps ?? ''}
+                  error={detailErrors[index]?.reps}
+                  onChange={(v) => handleNumericInputChange(index, 'reps', v)}
+                  onBlur={() => handleNumericBlur(index, 'reps')}
+                />
+                <NumericFieldInput
+                  label="负重 (kg)"
+                  field="weight"
+                  value={detailInputs[index]?.weight ?? ''}
+                  error={detailErrors[index]?.weight}
+                  onChange={(v) => handleNumericInputChange(index, 'weight', v)}
+                  onBlur={() => handleNumericBlur(index, 'weight')}
+                />
               </div>
             </div>
           ))}

@@ -1,6 +1,5 @@
 'use client';
 
-import { use } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { get } from '@/lib/api';
@@ -11,8 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/shared/Skeleton';
 import { ArrowLeft, Users, Star, ExternalLink, Calendar, Video } from 'lucide-react';
 
-export function BloggerDetailContent({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export function BloggerDetailContent({ id }: { id: string }) {
 
   const { data: blogger, isLoading: blLoading } = useQuery({
     queryKey: ['blogger', id],

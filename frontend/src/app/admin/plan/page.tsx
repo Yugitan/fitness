@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useClientPagination } from '@/hooks/useClientPagination';
+import { ListPagination } from '@/components/shared/ListPagination';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { get, del } from '@/lib/api';
 import type { Plan } from '@/types';
@@ -39,6 +41,8 @@ export default function AdminPlanPage() {
     return p.title?.toLowerCase().includes(s) || (p.description || '').toLowerCase().includes(s);
   });
 
+  const { currentPage, total, totalPages, pagedItems, handlePageChange } = useClientPagination(filtered, [search]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -73,7 +77,7 @@ export default function AdminPlanPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered?.map((plan) => (
+              {pagedItems.map((plan) => (
                 <tr key={plan.id} className="border-b border-surface-border last:border-0 hover:bg-surface-hover/50 transition-colors">
                   <td className="px-5 py-3 text-text-dim">{plan.id}</td>
                   <td className="px-5 py-3 text-text font-medium">{plan.title}</td>
@@ -109,6 +113,14 @@ export default function AdminPlanPage() {
           <div className="py-16"><EmptyState icon={<ClipboardList size={40} />} title="暂无计划数据" /></div>
         )}
       </Card>
+
+      <ListPagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        total={total}
+        onPageChange={handlePageChange}
+        itemLabel="个计划"
+      />
 
       <ConfirmDialog
         open={deleteConfirm !== null}

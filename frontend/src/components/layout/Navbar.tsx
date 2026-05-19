@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
@@ -19,6 +19,20 @@ export function Navbar() {
   const { user, isLoggedIn, isAdmin, logout, isLoading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [userMenuOpen]);
 
   // Don't show navbar on admin pages
   if (pathname?.startsWith('/admin')) return null;
@@ -64,7 +78,7 @@ export function Navbar() {
             {isLoading ? (
               <div className="w-20 h-8 rounded-lg bg-surface animate-pulse-soft" />
             ) : isLoggedIn ? (
-              <div className="relative">
+              <div ref={userMenuRef} className="relative">
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-text hover:bg-surface-hover transition-colors"
@@ -76,8 +90,6 @@ export function Navbar() {
                   <ChevronDown size={14} className={cn('transition-transform', userMenuOpen && 'rotate-180')} />
                 </button>
                 {userMenuOpen && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
                     <div className="absolute right-0 top-full mt-1 w-48 bg-surface border border-surface-border rounded-xl shadow-xl z-20 py-1 animate-scale-in">
                       <div className="px-3 py-2 border-b border-surface-border">
                         <p className="text-sm font-medium text-text">{user?.nickname || user?.username}</p>
@@ -110,7 +122,6 @@ export function Navbar() {
                         退出登录
                       </button>
                     </div>
-                  </>
                 )}
               </div>
             ) : (

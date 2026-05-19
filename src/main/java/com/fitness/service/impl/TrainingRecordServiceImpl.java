@@ -129,10 +129,16 @@ public class TrainingRecordServiceImpl implements TrainingRecordService {
 
     @Override
     public void markCompleted(Long id) {
-        TrainingRecord record = getById(id);
+        getById(id);
         List<TrainingRecordDetail> details = detailMapper.selectByRecordId(id);
-        int totalSets = details.size();
-        int totalReps = details.stream().mapToInt(d -> d.getReps() != null ? d.getReps() : 0).sum();
+        int totalSets = 0;
+        int totalReps = 0;
+        for (TrainingRecordDetail detail : details) {
+            int sets = detail.getSetNumber() != null ? detail.getSetNumber() : 0;
+            int reps = detail.getReps() != null ? detail.getReps() : 0;
+            totalSets += sets;
+            totalReps += sets * reps;
+        }
         recordMapper.markCompleted(id, totalSets, totalReps);
     }
 

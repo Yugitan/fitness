@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { get, post, put, del } from '@/lib/api';
 import type { TrainingRecord, TrainingRecordDetail, Exercise, ExerciseCategory, Plan } from '@/types';
 import { EXERCISE_CATEGORIES, CATEGORY_COLORS } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useGuestMode } from '@/hooks/useGuestMode';
-import { formatDate, todayStr, daysAgo } from '@/lib/utils';
-import { Card, CardTitle, CardDescription } from '@/components/ui/Card';
+import { formatDate, todayStr, daysAgo, computeTrainingStats } from '@/lib/utils';
+import { Card, CardTitle, CardDescription, CardFooter } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
@@ -18,19 +18,25 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { CardSkeleton } from '@/components/shared/Skeleton';
 import { AuthGuard } from '@/components/shared/AuthGuard';
+import { ListPagination, TRAINING_PAGE_SIZE } from '@/components/shared/ListPagination';
+import { NumericFieldInput } from '@/components/shared/NumericFieldInput';
+import {
+  parseDetailNumericField,
+  sanitizeDetailNumericInput,
+  validateDetailNumericField,
+  validateDetailNumericRows,
+  type DetailNumericField,
+} from '@/lib/numeric-field';
+
 import { toast } from 'sonner';
 import {
   Plus,
   Calendar,
-  Clock,
   Trash2,
   Copy,
   Edit3,
   CheckCircle2,
   X,
-  ChevronDown,
-  ChevronRight,
-  Minus,
   Dumbbell,
   BarChart3,
 } from 'lucide-react';
@@ -64,8 +70,10 @@ export default function TrainingRecordPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [editingRecord, setEditingRecord] = useState<TrainingRecord | null>(null);
-  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [viewingRecord, setViewingRecord] = useState<TrainingRecord | null>(null);
+  const [viewingRecordLoading, setViewingRecordLoading] = useState(false);
   const [appliedPlan, setAppliedPlan] = useState<Plan | null>(null);
+  const [page, setPage] = useState(1);
 
   // Check for applied plan from plan page
   useEffect(() => {
@@ -85,6 +93,29 @@ export default function TrainingRecordPage() {
     queryKey: ['training-records', startDate, endDate],
     queryFn: () => get<TrainingRecord[]>('/training/api/list', { startDate, endDate }),
   });
+
+  useEffect(() => {
+    setPage(1);
+  }, [startDate, endDate]);
+
+  const total = records?.length ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / TRAINING_PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const pagedRecords = useMemo(() => {
+    if (!records?.length) return [];
+    const start = (currentPage - 1) * TRAINING_PAGE_SIZE;
+    return records.slice(start, start + TRAINING_PAGE_SIZE);
+  }, [records, currentPage]);
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(nextPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const { data: exercises } = useQuery({
     queryKey: ['exercises'],
@@ -158,12 +189,19 @@ export default function TrainingRecordPage() {
     setAppliedPlan(null);
   };
 
-  const toggleExpand = (id: number) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
+  const openRecordDetail = async (record: TrainingRecord) => {
+    if (!record.id) return;
+    setViewingRecord(record);
+    setViewingRecordLoading(true);
+    try {
+      const full = await get<TrainingRecord>(`/training/api/${record.id}`);
+      setViewingRecord(full);
+    } catch {
+      toast.error('加载训练详情失败');
+      setViewingRecord(null);
+    } finally {
+      setViewingRecordLoading(false);
+    }
   };
 
   const canWrite = isLoggedIn && !isGuest;
@@ -174,8 +212,14 @@ export default function TrainingRecordPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
         <div>
-          <h1 className="font-display text-4xl text-text mb-2">训练记录 v2</h1>
-          <p className="text-text-muted">记录每日训练，见证每一次进步 — 点击卡片展开详情</p>
+          <h1 className="font-display text-4xl text-text mb-2">训练记录</h1>
+          <p className="text-text-muted">
+            {isLoading
+              ? '加载中...'
+              : total > 0
+                ? `共 ${total} 条记录，点击卡片查看详情`
+                : '记录每日训练，见证每一次进步'}
+          </p>
         </div>
         <Button onClick={() => { setEditingRecord(null); setFormOpen(true); }} className="gap-2" disabled={!canWrite && !isGuest}>
           <Plus size={18} />
@@ -199,129 +243,156 @@ export default function TrainingRecordPage() {
         </div>
       </div>
 
-      {/* Records list */}
+      {/* Records grid — 每行 3 个（紧凑） */}
       {isLoading ? (
-        <div className="space-y-4">
-          {Array.from({ length: 3 }).map((_, i) => (<CardSkeleton key={i} />))}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {Array.from({ length: TRAINING_PAGE_SIZE }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
         </div>
       ) : records && records.length > 0 ? (
-        <div className="space-y-4">
-          {records.map((record, i) => {
-            const isExpanded = expandedIds.has(record.id!);
+        <>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {pagedRecords.map((record, i) => {
             const categories = record.details
               ? [...new Set(record.details.map((d) => d.exerciseCategory).filter(Boolean) as string[])]
               : [];
+            const stats = computeTrainingStats(record.details);
+            const displaySets = record.details?.length ? stats.totalSets : (record.totalSets ?? 0);
+            const displayReps = record.details?.length ? stats.totalReps : (record.totalReps ?? 0);
 
             return (
               <Card
                 key={record.id}
-                className="animate-slide-up group cursor-pointer"
-                hover={true}
+                hover={false}
+                className="animate-slide-up flex flex-col p-3"
                 style={{ animationDelay: `${i * 60}ms` }}
-                onClick={() => toggleExpand(record.id!)}
               >
-                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center flex-wrap gap-2 mb-2">
-                      <div className="flex items-center gap-1.5 text-sm text-text">
-                        <Calendar size={14} className="text-primary" />
-                        {formatDate(record.trainDate, 'yyyy年MM月dd日')}
-                      </div>
-                      {record.duration && (
-                        <div className="flex items-center gap-1 text-sm text-text-muted">
-                          <Clock size={14} />{record.duration} 分钟
-                        </div>
-                      )}
+                <button
+                  type="button"
+                  onClick={() => openRecordDetail(record)}
+                  className="w-full text-left flex-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-lg"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="flex items-center gap-1.5 text-sm font-semibold mb-0">
+                      <Calendar size={14} className="text-primary shrink-0" />
+                      {formatDate(record.trainDate, 'yyyy年MM月dd日')}
+                    </CardTitle>
+                    <div className="flex flex-wrap gap-1 justify-end shrink-0">
                       {record.isCompleted === 1 ? (
-                        <Badge variant="success">已完成</Badge>
+                        <Badge variant="success" className="text-[10px] px-1.5 py-0">
+                          已完成
+                        </Badge>
                       ) : (
-                        <Badge variant="warning">进行中</Badge>
-                      )}
-                      {record.difficulty && (
-                        <Badge variant={record.difficulty === 3 ? 'danger' : record.difficulty === 2 ? 'warning' : 'success'}>
-                          {record.difficulty === 1 ? '轻松' : record.difficulty === 2 ? '适中' : '高强度'}
+                        <Badge variant="warning" className="text-[10px] px-1.5 py-0">
+                          进行中
                         </Badge>
                       )}
-                      {isExpanded && (
-                        <span className="text-xs text-primary-light flex items-center gap-1 ml-auto">
-                          <ChevronDown size={14} /> 收起
-                        </span>
+                      {record.difficulty != null && (
+                        <Badge
+                          variant={
+                            record.difficulty === 3
+                              ? 'danger'
+                              : record.difficulty === 2
+                                ? 'warning'
+                                : 'success'
+                          }
+                          className="text-[10px] px-1.5 py-0"
+                        >
+                          {record.difficulty === 1
+                            ? '轻松'
+                            : record.difficulty === 2
+                              ? '适中'
+                              : '高强度'}
+                        </Badge>
                       )}
-                    </div>
-
-                    {/* Category icons */}
-                    {categories.length > 0 && (
-                      <div className="flex items-center gap-1.5 mb-2">
-                        {categories.map((cat) => (
-                          <CategoryIcon key={cat} category={cat} size={14} />
-                        ))}
-                        <span className="text-xs text-text-dim ml-1">
-                          {categories.join(' / ')}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Expanded: show all details */}
-                    {isExpanded && record.details && record.details.length > 0 && (
-                      <div className="mt-3 space-y-1.5 animate-slide-up">
-                        {record.details.map((d) => (
-                          <div key={d.id || d.exerciseId} className="flex items-center gap-3 text-sm py-1">
-                            <CategoryIcon category={d.exerciseCategory || ''} />
-                            <span className="text-text min-w-[80px] truncate">
-                              {d.exerciseName || `动作 #${d.exerciseId}`}
-                            </span>
-                            <span className="text-text-muted">
-                              {d.setNumber} 组 × {d.reps} 次
-                              {d.weight > 0 && ` · ${d.weight}kg`}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {record.notes && (
-                      <p className="text-sm text-text-dim mt-2">{record.notes}</p>
-                    )}
-
-                    {/* Stats */}
-                    <div className="flex gap-4 mt-3 pt-3 border-t border-surface-border">
-                      {record.totalSets != null && (
-                        <span className="text-xs text-text-muted"><strong className="text-text">{record.totalSets}</strong> 组</span>
-                      )}
-                      {record.totalReps != null && (
-                        <span className="text-xs text-text-muted"><strong className="text-text">{record.totalReps}</strong> 次</span>
-                      )}
-                      {!isExpanded && (
-                        <span className="text-xs text-primary-light flex items-center gap-1">
-                          <ChevronRight size={12} /> 点击展开详情
-                        </span>
+                      {record.duration != null && record.duration > 0 && (
+                        <Badge variant="muted" className="text-[10px] px-1.5 py-0">
+                          {record.duration}分
+                        </Badge>
                       )}
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 lg:flex-col lg:gap-1" onClick={(e) => e.stopPropagation()}>
+                  {record.notes && (
+                    <CardDescription className="line-clamp-1 text-xs mt-1">
+                      {record.notes}
+                    </CardDescription>
+                  )}
+
+                  {categories.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {categories.map((cat) => (
+                        <CategoryIcon key={cat} category={cat} size={14} />
+                      ))}
+                    </div>
+                  )}
+
+                  {(stats.exerciseCount > 0 || displaySets > 0 || displayReps > 0) && (
+                    <p className="text-[11px] text-text-dim mt-1.5">
+                      {stats.exerciseCount > 0 && <span>{stats.exerciseCount} 动作 · </span>}
+                      {displaySets > 0 && <span>{displaySets} 组 · </span>}
+                      {displayReps > 0 && <span>{displayReps} 次</span>}
+                    </p>
+                  )}
+                </button>
+
+                <CardFooter className="mt-2 pt-2">
+                  <div className="flex items-center gap-0.5 ml-auto" onClick={(e) => e.stopPropagation()}>
                     {record.isCompleted !== 1 && (
-                      <Button variant="ghost" size="sm" onClick={() => completeMutation.mutate(record.id!)} disabled={!canWrite} className="text-success hover:text-success" title="标记完成">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => completeMutation.mutate(record.id!)}
+                        disabled={!canWrite}
+                        className="text-success hover:text-success"
+                        title="标记完成"
+                      >
                         <CheckCircle2 size={16} />
                       </Button>
                     )}
-                    <Button variant="ghost" size="sm" onClick={() => copyMutation.mutate(record.id!)} disabled={!canWrite} title="复制记录">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => copyMutation.mutate(record.id!)}
+                      disabled={!canWrite}
+                      title="复制记录"
+                    >
                       <Copy size={16} />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(record)} disabled={!canWrite} title="编辑">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(record)}
+                      disabled={!canWrite}
+                      title="编辑"
+                    >
                       <Edit3 size={16} />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setDeleteConfirm(record.id!)} disabled={!canWrite} className="text-danger hover:text-danger" title="删除">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setDeleteConfirm(record.id!)}
+                      disabled={!canWrite}
+                      className="text-danger hover:text-danger"
+                      title="删除"
+                    >
                       <Trash2 size={16} />
                     </Button>
                   </div>
-                </div>
+                </CardFooter>
               </Card>
             );
           })}
         </div>
+        <ListPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          total={total}
+          onPageChange={handlePageChange}
+          itemLabel="条记录"
+        />
+        </>
       ) : (
         <EmptyState
           icon={<BarChart3 size={48} />}
@@ -354,6 +425,19 @@ export default function TrainingRecordPage() {
         />
       )}
 
+      {viewingRecord && (
+        <TrainingRecordDetailDialog
+          record={viewingRecord}
+          loading={viewingRecordLoading}
+          onClose={() => setViewingRecord(null)}
+          onEdit={() => {
+            const r = viewingRecord;
+            setViewingRecord(null);
+            if (r) handleEdit(r);
+          }}
+        />
+      )}
+
       <ConfirmDialog
         open={deleteConfirm !== null}
         title="删除训练记录"
@@ -366,6 +450,155 @@ export default function TrainingRecordPage() {
       />
     </div>
     </AuthGuard>
+  );
+}
+
+type TrainingNumericField = Extract<DetailNumericField, 'setNumber' | 'reps' | 'weight'>;
+type TrainingDetailInputRow = Record<TrainingNumericField, string>;
+type TrainingDetailErrors = Partial<Record<TrainingNumericField, string>>;
+
+const TRAINING_NUMERIC_FIELDS: TrainingNumericField[] = ['setNumber', 'reps', 'weight'];
+
+function trainingDetailToInputs(d: TrainingRecordDetail): TrainingDetailInputRow {
+  return {
+    setNumber: String(d.setNumber ?? ''),
+    reps: String(d.reps ?? ''),
+    weight: d.weight != null && d.weight > 0 ? String(d.weight) : '',
+  };
+}
+
+function syncTrainingDetailsFromInputs(
+  details: TrainingRecordDetail[],
+  rows: TrainingDetailInputRow[]
+): TrainingRecordDetail[] {
+  return details.map((d, i) => ({
+    ...d,
+    setNumber: parseDetailNumericField('setNumber', rows[i]?.setNumber ?? ''),
+    reps: parseDetailNumericField('reps', rows[i]?.reps ?? ''),
+    weight: parseDetailNumericField('weight', rows[i]?.weight ?? ''),
+  }));
+}
+
+function TrainingRecordDetailDialog({
+  record,
+  loading,
+  onClose,
+  onEdit,
+}: {
+  record: TrainingRecord;
+  loading?: boolean;
+  onClose: () => void;
+  onEdit?: () => void;
+}) {
+  const stats = computeTrainingStats(record.details);
+  const categories = record.details
+    ? [...new Set(record.details.map((d) => d.exerciseCategory).filter(Boolean) as string[])]
+    : [];
+  const title = formatDate(record.trainDate, 'yyyy年MM月dd日');
+
+  return (
+    <Dialog open onClose={onClose} title={title} size="lg">
+      <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
+        <div className="flex flex-wrap gap-2">
+          {record.isCompleted === 1 ? (
+            <Badge variant="success">已完成</Badge>
+          ) : (
+            <Badge variant="warning">进行中</Badge>
+          )}
+          {record.difficulty != null && (
+            <Badge
+              variant={
+                record.difficulty === 3 ? 'danger' : record.difficulty === 2 ? 'warning' : 'success'
+              }
+            >
+              {record.difficulty === 1 ? '轻松' : record.difficulty === 2 ? '适中' : '高强度'}
+            </Badge>
+          )}
+          {record.duration != null && record.duration > 0 && (
+            <Badge variant="muted">{record.duration} 分钟</Badge>
+          )}
+          {categories.map((cat) => (
+            <Badge key={cat} variant="outline">
+              {cat}
+            </Badge>
+          ))}
+        </div>
+
+        {record.notes && (
+          <p className="text-sm text-text-muted leading-relaxed">{record.notes}</p>
+        )}
+
+        <div className="flex flex-wrap gap-4 text-sm text-text-muted">
+          {stats.exerciseCount > 0 && (
+            <span>
+              <strong className="text-text">{stats.exerciseCount}</strong> 个动作
+            </span>
+          )}
+          {stats.totalSets > 0 && (
+            <span>
+              <strong className="text-text">{stats.totalSets}</strong> 组
+            </span>
+          )}
+          {stats.totalReps > 0 && (
+            <span>
+              <strong className="text-text">{stats.totalReps}</strong> 次
+            </span>
+          )}
+        </div>
+
+        {loading ? (
+          <div className="space-y-3 py-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <CardSkeleton key={i} />
+            ))}
+          </div>
+        ) : record.details && record.details.length > 0 ? (
+          <ul className="rounded-xl border border-surface-border divide-y divide-surface-border overflow-hidden">
+            {record.details.map((d, idx) => (
+              <li
+                key={d.id ?? `${d.exerciseId}-${idx}`}
+                className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 bg-surface-hover/20"
+              >
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <CategoryIcon category={d.exerciseCategory || ''} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-text truncate">
+                      {d.exerciseName || `动作 #${d.exerciseId}`}
+                    </p>
+                    {d.exerciseCategory && (
+                      <p className="text-xs text-text-dim">{d.exerciseCategory}</p>
+                    )}
+                    {d.notes && <p className="text-xs text-text-muted mt-1">{d.notes}</p>}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 text-sm text-text-muted shrink-0">
+                  <span>
+                    <strong className="text-text">{d.setNumber}</strong> 组 ×{' '}
+                    <strong className="text-text">{d.reps}</strong> 次
+                  </span>
+                  {d.weight > 0 && <span>{d.weight} kg</span>}
+                  <span className="text-text-dim">小计 {d.setNumber * d.reps} 次</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState icon={<Dumbbell size={40} />} title="暂无动作明细" description="该记录未添加训练动作" />
+        )}
+
+        <div className="flex flex-wrap gap-3 justify-end pt-2 border-t border-surface-border sticky bottom-0 bg-surface">
+          <Button type="button" variant="outline" onClick={onClose}>
+            关闭
+          </Button>
+          {onEdit && (
+            <Button type="button" variant="ghost" onClick={onEdit} className="gap-1">
+              <Edit3 size={16} />
+              编辑
+            </Button>
+          )}
+        </div>
+      </div>
+    </Dialog>
   );
 }
 
@@ -418,20 +651,63 @@ function TrainingFormDialog({
   const [duration, setDuration] = useState(record?.duration || 60);
   const [difficulty, setDifficulty] = useState(record?.difficulty || 2);
   const [notes, setNotes] = useState(record?.notes || '');
-  const [details, setDetails] = useState<TrainingRecordDetail[]>(buildInitialDetails());
+  const initialDetails = buildInitialDetails();
+  const [details, setDetails] = useState<TrainingRecordDetail[]>(initialDetails);
+  const [detailInputs, setDetailInputs] = useState<TrainingDetailInputRow[]>(() =>
+    initialDetails.map(trainingDetailToInputs)
+  );
+  const [detailErrors, setDetailErrors] = useState<Record<number, TrainingDetailErrors>>({});
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState<number | null>(null);
 
   const handleAddRow = () => {
     setDetails([...details, { setNumber: 3, reps: 12, weight: 0, exerciseId: undefined, exerciseName: '', exerciseCategory: '' }]);
+    setDetailInputs([...detailInputs, { setNumber: '3', reps: '12', weight: '' }]);
+    setDetailErrors({});
   };
 
   const handleRemoveRow = (index: number) => {
     setDetails(details.filter((_, i) => i !== index));
+    setDetailInputs(detailInputs.filter((_, i) => i !== index));
+    setDetailErrors((prev) => {
+      const next: Record<number, TrainingDetailErrors> = {};
+      Object.entries(prev).forEach(([key, val]) => {
+        const i = Number(key);
+        if (i < index) next[i] = val;
+        else if (i > index) next[i - 1] = val;
+      });
+      return next;
+    });
   };
 
   const handleDetailChange = (index: number, field: keyof TrainingRecordDetail, value: unknown) => {
     setDetails(details.map((d, i) => (i === index ? { ...d, [field]: value } : d)));
+  };
+
+  const handleNumericInputChange = (index: number, field: TrainingNumericField, raw: string) => {
+    const sanitized = sanitizeDetailNumericInput(field, raw);
+    setDetailInputs((prev) =>
+      prev.map((row, i) => (i === index ? { ...row, [field]: sanitized } : row))
+    );
+    const err = validateDetailNumericField(field, sanitized, {
+      allowPartial: field === 'weight',
+    });
+    setDetailErrors((prev) => ({
+      ...prev,
+      [index]: { ...prev[index], [field]: err },
+    }));
+    if (!err) {
+      handleDetailChange(index, field, parseDetailNumericField(field, sanitized));
+    }
+  };
+
+  const handleNumericBlur = (index: number, field: TrainingNumericField) => {
+    const value = detailInputs[index]?.[field] ?? '';
+    const err = validateDetailNumericField(field, value, { allowPartial: false });
+    setDetailErrors((prev) => ({
+      ...prev,
+      [index]: { ...prev[index], [field]: err },
+    }));
   };
 
   const handleSelectExercise = (index: number, ex: Exercise) => {
@@ -444,12 +720,19 @@ function TrainingFormDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const { valid, errors } = validateDetailNumericRows(detailInputs, TRAINING_NUMERIC_FIELDS);
+    setDetailErrors(errors);
+    if (!valid) {
+      toast.error('请修正动作明细中的数字输入');
+      return;
+    }
+    const syncedDetails = syncTrainingDetailsFromInputs(details, detailInputs);
     const data: TrainingRecord = {
       trainDate,
       duration,
       difficulty,
       notes,
-      details: details.map((d, i) => ({ ...d, sortOrder: i + 1 })),
+      details: syncedDetails.map((d, i) => ({ ...d, sortOrder: i + 1 })),
     };
     onSave(data);
   };
@@ -570,53 +853,30 @@ function TrainingFormDialog({
               </div>
 
               <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">组数</Label>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleDetailChange(index, 'setNumber', Math.max(1, (detail.setNumber || 1) - 1))}
-                      className="w-8 h-8 rounded-lg bg-surface-hover flex items-center justify-center text-text-muted hover:text-text"
-                    >
-                      <Minus size={14} />
-                    </button>
-                    <Input
-                      type="number"
-                      value={detail.setNumber || ''}
-                      onChange={(e) => handleDetailChange(index, 'setNumber', Number(e.target.value))}
-                      min={1}
-                      className="h-8 text-center w-16"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleDetailChange(index, 'setNumber', (detail.setNumber || 0) + 1)}
-                      className="w-8 h-8 rounded-lg bg-surface-hover flex items-center justify-center text-text-muted hover:text-text"
-                    >
-                      <Plus size={14} />
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">次数</Label>
-                  <Input
-                    type="number"
-                    value={detail.reps || ''}
-                    onChange={(e) => handleDetailChange(index, 'reps', Number(e.target.value))}
-                    min={1}
-                    className="h-8"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">负重 (kg)</Label>
-                  <Input
-                    type="number"
-                    value={detail.weight ?? ''}
-                    onChange={(e) => handleDetailChange(index, 'weight', Number(e.target.value))}
-                    min={0}
-                    step={2.5}
-                    className="h-8"
-                  />
-                </div>
+                <NumericFieldInput
+                  label="组数"
+                  field="setNumber"
+                  value={detailInputs[index]?.setNumber ?? ''}
+                  error={detailErrors[index]?.setNumber}
+                  onChange={(v) => handleNumericInputChange(index, 'setNumber', v)}
+                  onBlur={() => handleNumericBlur(index, 'setNumber')}
+                />
+                <NumericFieldInput
+                  label="次数"
+                  field="reps"
+                  value={detailInputs[index]?.reps ?? ''}
+                  error={detailErrors[index]?.reps}
+                  onChange={(v) => handleNumericInputChange(index, 'reps', v)}
+                  onBlur={() => handleNumericBlur(index, 'reps')}
+                />
+                <NumericFieldInput
+                  label="负重 (kg)"
+                  field="weight"
+                  value={detailInputs[index]?.weight ?? ''}
+                  error={detailErrors[index]?.weight}
+                  onChange={(v) => handleNumericInputChange(index, 'weight', v)}
+                  onBlur={() => handleNumericBlur(index, 'weight')}
+                />
               </div>
             </div>
           ))}

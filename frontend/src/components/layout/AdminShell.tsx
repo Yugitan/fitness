@@ -14,6 +14,7 @@ import {
   Wallet,
   Settings,
   LogOut,
+  Home,
   Menu,
   X,
   ChevronRight,
@@ -125,6 +126,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             href="/"
             className="flex items-center gap-2 w-full px-3 py-2 text-xs text-text-muted hover:text-text hover:bg-surface-hover rounded-lg transition-colors mb-1"
           >
+            <Home size={12} />
             返回前台
           </Link>
           <button

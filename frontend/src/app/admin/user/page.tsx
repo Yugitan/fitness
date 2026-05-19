@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useClientPagination } from '@/hooks/useClientPagination';
+import { ListPagination } from '@/components/shared/ListPagination';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { get, post, put, del } from '@/lib/api';
 import type { User } from '@/types';
@@ -66,6 +68,8 @@ export default function AdminUserPage() {
     );
   });
 
+  const { currentPage, total, totalPages, pagedItems, handlePageChange } = useClientPagination(filtered, [search]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -110,7 +114,7 @@ export default function AdminUserPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered?.map((user) => (
+              {pagedItems.map((user) => (
                 <tr key={user.id} className="border-b border-surface-border last:border-0 hover:bg-surface-hover/50 transition-colors">
                   <td className="px-5 py-3 text-text-dim">{user.id}</td>
                   <td className="px-5 py-3 text-text font-medium">{user.username}</td>
@@ -182,6 +186,14 @@ export default function AdminUserPage() {
           </div>
         )}
       </Card>
+
+      <ListPagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        total={total}
+        onPageChange={handlePageChange}
+        itemLabel="位用户"
+      />
 
       {/* Reset password dialog */}
       <Dialog

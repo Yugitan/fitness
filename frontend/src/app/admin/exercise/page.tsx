@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useClientPagination } from '@/hooks/useClientPagination';
+import { ListPagination, DEFAULT_PAGE_SIZE } from '@/components/shared/ListPagination';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { get, post, put, del } from '@/lib/api';
 import type { Exercise, ExerciseCategory } from '@/types';
@@ -44,6 +46,12 @@ export default function AdminExercisePage() {
     return ex.name?.toLowerCase().includes(s) || ex.category?.includes(s);
   });
 
+  const { currentPage, total, totalPages, pagedItems, handlePageChange } = useClientPagination(
+    filtered,
+    [search],
+    DEFAULT_PAGE_SIZE,
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -84,7 +92,7 @@ export default function AdminExercisePage() {
               </tr>
             </thead>
             <tbody>
-              {filtered?.map((ex) => (
+              {pagedItems.map((ex) => (
                 <tr key={ex.id} className="border-b border-surface-border last:border-0 hover:bg-surface-hover/50 transition-colors">
                   <td className="px-5 py-3 text-text-dim">{ex.id}</td>
                   <td className="px-5 py-3 text-text font-medium">{ex.name}</td>
@@ -122,6 +130,14 @@ export default function AdminExercisePage() {
           <div className="py-16"><EmptyState icon={<Dumbbell size={40} />} title="暂无动作数据" /></div>
         )}
       </Card>
+
+      <ListPagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        total={total}
+        onPageChange={handlePageChange}
+        itemLabel="个动作"
+      />
 
       {formOpen && (
         <ExerciseFormDialog

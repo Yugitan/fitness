@@ -2,7 +2,13 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { toast } from 'sonner';
 import type { ApiResult } from '@/types';
 
-const BASE_URL = typeof window !== 'undefined' ? '/fitness' : 'http://localhost:8080/fitness';
+/** 开发：浏览器直连 8080（避免 Next 代理与 trailingSlash 冲突）；生产/Tomcat：同源 /fitness */
+const BASE_URL =
+  typeof window !== 'undefined'
+    ? process.env.NODE_ENV === 'development'
+      ? 'http://localhost:8080/fitness'
+      : '/fitness'
+    : 'http://localhost:8080/fitness';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -72,8 +78,8 @@ export default api;
 
 // ============ Typed API helpers ============
 
-export async function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
-  const res = await api.get<T>(url, { params });
+export async function get<T>(url: string, query?: Record<string, unknown>): Promise<T> {
+  const res = await api.get<T>(url, { params: query });
   return res.data as T;
 }
 

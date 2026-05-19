@@ -12,7 +12,7 @@ import {
   ClipboardList,
   Activity,
   TrendingUp,
-  ArrowRight,
+  Settings,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -147,7 +147,7 @@ export default function AdminDashboard() {
         <Link href="/admin/user/"><Button variant="outline" className="w-full gap-2"><Users size={16} />用户管理</Button></Link>
         <Link href="/admin/exercise/"><Button variant="outline" className="w-full gap-2"><Dumbbell size={16} />动作管理</Button></Link>
         <Link href="/admin/plan/"><Button variant="outline" className="w-full gap-2"><ClipboardList size={16} />计划管理</Button></Link>
-        <Link href="/admin/config/"><Button variant="outline" className="w-full gap-2">系统配置</Button></Link>
+        <Link href="/admin/config/"><Button variant="outline" className="w-full gap-2"><Settings size={16} />系统配置</Button></Link>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { format, parseISO, isValid, differenceInDays, subDays } from 'date-fns';
+import type { TrainingRecordDetail } from '@/types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -68,4 +69,20 @@ export function getRoleLabel(role: number): string {
 
 export function getStatusLabel(status: number): string {
   return status === 1 ? '正常' : '已禁用';
+}
+
+/** 按动作明细汇总：总组数 = Σ组数，总次数 = Σ(组数×每組次数) */
+export function computeTrainingStats(details?: TrainingRecordDetail[]) {
+  if (!details?.length) {
+    return { exerciseCount: 0, totalSets: 0, totalReps: 0 };
+  }
+  let totalSets = 0;
+  let totalReps = 0;
+  for (const d of details) {
+    const sets = Number(d.setNumber) || 0;
+    const reps = Number(d.reps) || 0;
+    totalSets += sets;
+    totalReps += sets * reps;
+  }
+  return { exerciseCount: details.length, totalSets, totalReps };
 }

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import { Providers } from '@/components/Providers';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -31,6 +32,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="zh-CN">
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
+        {process.env.NODE_ENV === 'development' && (
+          <Script src="/fitness/suppress-params-warning.js" strategy="beforeInteractive" />
+        )}
       </head>
       <body className="min-h-screen flex flex-col">
         <Providers>
