@@ -84,9 +84,9 @@ public class TrainingRecordController {
     @PostMapping("/api/create")
     @ResponseBody
     public Result create(@RequestBody TrainingRecord record, HttpSession session) {
-        Long currentUserId = getCurrentUserId(session);
-        if (currentUserId != null) {
-            record.setUserId(currentUserId);
+        User loginUser = (User) session.getAttribute("loginUser");
+        if (loginUser != null) {
+            record.setUserId(loginUser.getId());
         }
         List<TrainingRecordDetail> details = record.getDetails();
         TrainingRecord created = trainingRecordService.create(record, details);

@@ -29,4 +29,7 @@ public interface TrainingRecordDetailMapper {
 
     /** 清理过期游客数据明细 */
     int deleteExpiredGuestDetails(@Param("cutoffDate") java.time.LocalDate cutoffDate);
+
+    /** 动作使用频率统计（按用户过滤） */
+    List<java.util.Map<String, Object>> getExerciseFrequency(@Param("userId") Long userId);
 }

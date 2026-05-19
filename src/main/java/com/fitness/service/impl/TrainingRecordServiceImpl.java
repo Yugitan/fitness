@@ -58,20 +58,48 @@ public class TrainingRecordServiceImpl implements TrainingRecordService {
     @Transactional
     public TrainingRecord create(TrainingRecord record, List<TrainingRecordDetail> details) {
         recordMapper.insert(record);
+        int totalSets = 0;
+        int totalReps = 0;
         if (details != null && !details.isEmpty()) {
             for (TrainingRecordDetail detail : details) {
                 detail.setRecordId(record.getId());
+                int sets = detail.getSetNumber() != null ? detail.getSetNumber() : 0;
+                int reps = detail.getReps() != null ? detail.getReps() : 0;
+                totalSets += sets;
+                totalReps += sets * reps;
             }
             detailMapper.batchInsert(details);
         }
+        record.setTotalSets(totalSets);
+        record.setTotalReps(totalReps);
+        recordMapper.update(record);
         return record;
     }
 
     @Override
+    @Transactional
     public TrainingRecord update(TrainingRecord record) {
         getById(record.getId());
+
+        List<TrainingRecordDetail> details = record.getDetails();
+        detailMapper.deleteByRecordId(record.getId());
+        int totalSets = 0;
+        int totalReps = 0;
+        if (details != null && !details.isEmpty()) {
+            for (TrainingRecordDetail detail : details) {
+                detail.setRecordId(record.getId());
+                int sets = detail.getSetNumber() != null ? detail.getSetNumber() : 0;
+                int reps = detail.getReps() != null ? detail.getReps() : 0;
+                totalSets += sets;
+                totalReps += sets * reps;
+            }
+            detailMapper.batchInsert(details);
+        }
+        record.setTotalSets(totalSets);
+        record.setTotalReps(totalReps);
+
         recordMapper.update(record);
-        return record;
+        return getById(record.getId());
     }
 
     @Override

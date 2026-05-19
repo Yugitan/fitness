@@ -39,4 +39,10 @@ public interface TrainingRecordMapper {
 
     /** 清理过期游客数据（userId为NULL且创建时间早于指定日期） */
     int deleteExpiredGuestRecords(@Param("cutoffDate") LocalDate cutoffDate);
+
+    /** 个人训练统计 */
+    java.util.Map<String, Object> getPersonalStats(@Param("userId") Long userId);
+
+    /** 月度训练趋势（近6个月） */
+    List<java.util.Map<String, Object>> getMonthlyTrend(@Param("userId") Long userId);
 }

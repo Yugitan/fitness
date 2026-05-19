@@ -3,7 +3,7 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   output: 'export',
   basePath: '/fitness',
-  distDir: 'out',
+  distDir: '../src/main/resources/static',
   trailingSlash: true,
   images: {
     unoptimized: true,
@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
   // In dev mode, proxy API calls to Spring Boot backend
   async rewrites() {
     return [
+      {
+        source: '/fitness/statistics/api/:path*',
+        destination: 'http://localhost:8080/fitness/statistics/api/:path*',
+      },
       {
         source: '/fitness/api/:path*',
         destination: 'http://localhost:8080/fitness/api/:path*',

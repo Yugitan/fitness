@@ -3,10 +3,18 @@
 import { useGuestMode } from '@/hooks/useGuestMode';
 import { Button } from '@/components/ui/Button';
 import { Dumbbell, Clock, Lock, ArrowRight } from 'lucide-react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export function GuestModal() {
-  const { showDailyPopup, showLockPopup, daysUsed, daysRemaining, dismissDailyPopup } = useGuestMode();
+  const router = useRouter();
+  const { showDailyPopup, showLockPopup, daysUsed, daysRemaining, dismissDailyPopup, dismissLockPopup } = useGuestMode();
+
+  const navigateAndDismiss = (path: string) => {
+    dismissDailyPopup();
+    dismissLockPopup();
+    // Defer navigation so React flushes dismiss state before route change
+    setTimeout(() => router.push(path), 0);
+  };
 
   if (!showDailyPopup && !showLockPopup) return null;
 
@@ -29,16 +37,12 @@ export function GuestModal() {
                 注册账号即可继续使用全部功能，数据永久保存
               </p>
               <div className="flex flex-col gap-3">
-                <Link href="/login/">
-                  <Button className="w-full gap-2" size="lg">
-                    登录 <ArrowRight size={16} />
-                  </Button>
-                </Link>
-                <Link href="/register/">
-                  <Button variant="accent" className="w-full gap-2" size="lg">
-                    注册新账号
-                  </Button>
-                </Link>
+                <Button className="w-full gap-2" size="lg" onClick={() => navigateAndDismiss('/login/')}>
+                  登录 <ArrowRight size={16} />
+                </Button>
+                <Button variant="accent" className="w-full gap-2" size="lg" onClick={() => navigateAndDismiss('/register/')}>
+                  注册新账号
+                </Button>
               </div>
             </div>
           </>
@@ -64,12 +68,8 @@ export function GuestModal() {
               </div>
 
               <div className="flex gap-3">
-                <Link href="/login/" className="flex-1">
-                  <Button variant="default" className="w-full">登录</Button>
-                </Link>
-                <Link href="/register/" className="flex-1">
-                  <Button variant="accent" className="w-full">注册</Button>
-                </Link>
+                <Button variant="default" className="flex-1" onClick={() => navigateAndDismiss('/login/')}>登录</Button>
+                <Button variant="accent" className="flex-1" onClick={() => navigateAndDismiss('/register/')}>注册</Button>
               </div>
               <button
                 onClick={dismissDailyPopup}

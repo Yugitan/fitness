@@ -59,4 +59,18 @@
         )
         AND is_deleted = 0
     </update>
+
+    <select id="getExerciseFrequency" resultType="java.util.HashMap">
+        SELECT
+            COALESCE(e.name, CONCAT('动作 #', d.exercise_id)) AS name,
+            COUNT(*) AS count
+        FROM training_record_detail d
+        JOIN training_record r ON d.record_id = r.id
+        LEFT JOIN exercise e ON d.exercise_id = e.id
+        WHERE r.is_deleted = 0 AND d.is_deleted = 0
+        <if test="userId != null">AND r.user_id = #{userId}</if>
+        GROUP BY d.exercise_id, e.name
+        ORDER BY count DESC
+        LIMIT 10
+    </select>
 </mapper>

@@ -1,11 +1,11 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { get } from '@/lib/api';
 import type { PersonalStats, MonthlyTrend, ExerciseFrequency } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/shared/Skeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { AuthGuard } from '@/components/shared/AuthGuard';
@@ -20,62 +20,98 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
   AreaChart,
   Area,
 } from 'recharts';
+import type { TooltipProps } from 'recharts';
 import {
   BarChart3,
   TrendingUp,
   Dumbbell,
   Zap,
   Activity,
-  Lock,
 } from 'lucide-react';
-import Link from 'next/link';
 
 const CHART_COLORS = ['#7d9b76', '#c9a96e', '#e0556a', '#60a5fa', '#a78bfa', '#fb923c'];
 
+type FrequencyChartItem = ExerciseFrequency & { fill: string };
+
+function formatMonthLabel(month: string): string {
+  const match = month.match(/^(\d{4})-(\d{1,2})$/);
+  if (match) return `${parseInt(match[2], 10)}月`;
+  return month;
+}
+
+function normalizeTrend(rows: MonthlyTrend[] | undefined): MonthlyTrend[] {
+  if (!rows?.length) return [];
+  return rows.map((row) => ({
+    month: formatMonthLabel(String(row.month)),
+    workouts: Number(row.workouts) || 0,
+    sets: Number(row.sets) || 0,
+    reps: Number(row.reps) || 0,
+  }));
+}
+
+function normalizeFrequency(rows: ExerciseFrequency[] | undefined): FrequencyChartItem[] {
+  if (!rows?.length) return [];
+  return rows.map((row, i) => ({
+    name: String(row.name),
+    count: Number(row.count) || 0,
+    fill: CHART_COLORS[i % CHART_COLORS.length],
+  }));
+}
+
+function PieFrequencyTooltip({ active, payload }: TooltipProps<number, string>) {
+  if (!active || !payload?.length) return null;
+  const item = payload[0].payload as FrequencyChartItem;
+  return (
+    <div
+      className="px-3 py-2 rounded-xl text-sm font-medium shadow-lg"
+      style={{ backgroundColor: '#ffffff', color: '#1a1a1a', border: '1px solid #e5e5e5' }}
+    >
+      <p>{item.name}</p>
+      <p className="opacity-70">{item.count} 组</p>
+    </div>
+  );
+}
+
+const tooltipDarkStyle = {
+  backgroundColor: '#1a1a1a',
+  border: '1px solid #2a2a2a',
+  borderRadius: '12px',
+  color: '#f5f5f0',
+};
+
 export default function StatisticsPage() {
   const { isLoggedIn } = useAuth();
+  const [pieHoverIndex, setPieHoverIndex] = useState<number | undefined>(undefined);
 
-  const { data: personal, isLoading } = useQuery({
+  const { data: personal, isLoading: personalLoading } = useQuery({
     queryKey: ['stats-personal'],
     queryFn: () => get<PersonalStats>('/statistics/api/personal'),
     enabled: isLoggedIn,
   });
 
-  const { data: trend } = useQuery({
+  const { data: trend, isLoading: trendLoading } = useQuery({
     queryKey: ['stats-trend'],
     queryFn: () => get<MonthlyTrend[]>('/statistics/api/monthly-trend'),
     enabled: isLoggedIn,
   });
 
-  const { data: frequency } = useQuery({
+  const { data: frequency, isLoading: frequencyLoading } = useQuery({
     queryKey: ['stats-frequency'],
     queryFn: () => get<ExerciseFrequency[]>('/statistics/api/exercise-frequency'),
     enabled: isLoggedIn,
   });
 
-  // Build mock data since backend APIs are stubs
-  const mockTrend: MonthlyTrend[] = [
-    { month: '1月', workouts: 12, sets: 96, reps: 1152 },
-    { month: '2月', workouts: 15, sets: 120, reps: 1440 },
-    { month: '3月', workouts: 18, sets: 144, reps: 1728 },
-    { month: '4月', workouts: 20, sets: 160, reps: 1920 },
-    { month: '5月', workouts: 22, sets: 176, reps: 2112 },
-    { month: '6月', workouts: 19, sets: 152, reps: 1824 },
-  ];
+  const isLoading = personalLoading || trendLoading || frequencyLoading;
 
-  const mockFrequency: ExerciseFrequency[] = [
-    { name: '卧推', count: 48 },
-    { name: '哑铃飞鸟', count: 36 },
-    { name: '深蹲', count: 42 },
-    { name: '硬拉', count: 30 },
-    { name: '引体向上', count: 28 },
-    { name: '弯举', count: 24 },
-  ];
+  const trendData = useMemo(() => normalizeTrend(trend), [trend]);
+  const frequencyData = useMemo(() => normalizeFrequency(frequency), [frequency]);
+
+  const totalWorkouts = Number(personal?.totalWorkouts) || 0;
+  const totalSets = Number(personal?.totalSets) || 0;
+  const avgDuration = Number(personal?.avgDuration) || 0;
 
   return (
     <AuthGuard>
@@ -96,13 +132,12 @@ export default function StatisticsPage() {
         </div>
       ) : (
         <>
-          {/* Stats cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {[
-              { label: '训练次数', value: '87', icon: Activity, color: 'text-primary-light', bg: 'bg-primary/10' },
-              { label: '总组数', value: '848', icon: BarChart3, color: 'text-accent-light', bg: 'bg-accent/10' },
-              { label: '动作频率', value: '6种', icon: Dumbbell, color: 'text-cat-chest', bg: 'bg-cat-chest/10' },
-              { label: '连续天数', value: '5天', icon: Zap, color: 'text-cat-back', bg: 'bg-cat-back/10' },
+              { label: '训练次数', value: totalWorkouts.toString(), icon: Activity, color: 'text-primary-light', bg: 'bg-primary/10' },
+              { label: '总组数', value: totalSets.toString(), icon: BarChart3, color: 'text-accent-light', bg: 'bg-accent/10' },
+              { label: '动作种类', value: `${frequencyData.length}种`, icon: Dumbbell, color: 'text-cat-chest', bg: 'bg-cat-chest/10' },
+              { label: '平均时长', value: avgDuration > 0 ? `${Math.round(avgDuration)}分` : '--', icon: Zap, color: 'text-cat-back', bg: 'bg-cat-back/10' },
             ].map((stat) => (
               <Card key={stat.label} hover={false} className="flex items-center gap-4">
                 <div className={`w-12 h-12 rounded-xl ${stat.bg} flex items-center justify-center flex-shrink-0`}>
@@ -116,103 +151,112 @@ export default function StatisticsPage() {
             ))}
           </div>
 
-          {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            {/* Monthly trend */}
             <Card hover={false}>
               <h3 className="text-lg font-semibold text-text mb-4 flex items-center gap-2">
                 <TrendingUp size={18} className="text-primary" />
                 月度训练趋势
               </h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={mockTrend}>
-                  <defs>
-                    <linearGradient id="workoutGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#7d9b76" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#7d9b76" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-                  <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
-                  <YAxis stroke="#6b7280" fontSize={12} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#1a1a1a',
-                      border: '1px solid #2a2a2a',
-                      borderRadius: '12px',
-                      color: '#f5f5f0',
-                    }}
-                  />
-                  <Area type="monotone" dataKey="workouts" stroke="#7d9b76" strokeWidth={2} fillOpacity={1} fill="url(#workoutGradient)" name="训练次数" />
-                </AreaChart>
-              </ResponsiveContainer>
+              {trendData.length === 0 ? (
+                <EmptyState title="暂无趋势数据" description="完成训练后，这里会展示近 6 个月的训练次数" />
+              ) : (
+                <ResponsiveContainer width="100%" height={280}>
+                  <AreaChart data={trendData}>
+                    <defs>
+                      <linearGradient id="workoutGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#7d9b76" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#7d9b76" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
+                    <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
+                    <YAxis stroke="#6b7280" fontSize={12} allowDecimals={false} />
+                    <Tooltip contentStyle={tooltipDarkStyle} />
+                    <Area type="monotone" dataKey="workouts" stroke="#7d9b76" strokeWidth={2} fillOpacity={1} fill="url(#workoutGradient)" name="训练次数" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </Card>
 
-            {/* Exercise frequency (pie) */}
             <Card hover={false}>
               <h3 className="text-lg font-semibold text-text mb-4 flex items-center gap-2">
                 <Dumbbell size={18} className="text-accent" />
                 动作训练频率
               </h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <PieChart>
-                  <Pie
-                    data={mockFrequency}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={2}
-                    dataKey="count"
-                    nameKey="name"
-                  >
-                    {mockFrequency.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#1a1a1a',
-                      border: '1px solid #2a2a2a',
-                      borderRadius: '12px',
-                      color: '#f5f5f0',
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex flex-wrap gap-3 justify-center mt-2">
-                {mockFrequency.map((item, i) => (
-                  <div key={item.name} className="flex items-center gap-1.5 text-xs text-text-muted">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: CHART_COLORS[i] }} />
-                    {item.name}
+              {frequencyData.length === 0 ? (
+                <EmptyState title="暂无动作统计" description="在训练记录中添加动作组数后，将按组数统计各动作频率" />
+              ) : (
+                <>
+                  <div className="stat-pie-chart">
+                    <ResponsiveContainer width="100%" height={280}>
+                      <PieChart>
+                        <Pie
+                          data={frequencyData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={100}
+                          paddingAngle={2}
+                          dataKey="count"
+                          nameKey="name"
+                          activeIndex={pieHoverIndex}
+                          onMouseEnter={(_, index) => setPieHoverIndex(index)}
+                          onMouseLeave={() => setPieHoverIndex(undefined)}
+                          onClick={(_, __, event) => {
+                            event?.stopPropagation();
+                            event?.preventDefault();
+                          }}
+                          style={{ cursor: 'default', outline: 'none' }}
+                          isAnimationActive={false}
+                        >
+                          {frequencyData.map((entry) => (
+                            <Cell key={entry.name} fill={entry.fill} stroke="none" />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          content={<PieFrequencyTooltip />}
+                          wrapperStyle={{ pointerEvents: 'none', background: 'transparent', border: 'none' }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
-                ))}
-              </div>
+                  <style>{`
+                    .stat-pie-chart .recharts-pie-sector { cursor: default !important; }
+                    .stat-pie-chart .recharts-active-shape { cursor: default !important; }
+                    .stat-pie-chart .recharts-pie-sector:focus { outline: none !important; }
+                    .stat-pie-chart .recharts-pie-labels text { cursor: default !important; }
+                  `}</style>
+                  <div className="flex flex-wrap gap-3 justify-center mt-2">
+                    {frequencyData.map((item) => (
+                      <div key={item.name} className="flex items-center gap-1.5 text-xs text-text-muted">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.fill }} />
+                        {item.name}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </Card>
 
-            {/* Sets & Reps Bar Chart */}
             <Card hover={false} className="lg:col-span-2">
               <h3 className="text-lg font-semibold text-text mb-4 flex items-center gap-2">
                 <BarChart3 size={18} className="text-cat-shoulder" />
                 月度组数与次数
               </h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={mockTrend} barGap={4}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-                  <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
-                  <YAxis stroke="#6b7280" fontSize={12} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#1a1a1a',
-                      border: '1px solid #2a2a2a',
-                      borderRadius: '12px',
-                      color: '#f5f5f0',
-                    }}
-                  />
-                  <Bar dataKey="sets" fill="#7d9b76" radius={[4, 4, 0, 0]} name="总组数" />
-                  <Bar dataKey="reps" fill="#c9a96e" radius={[4, 4, 0, 0]} name="总次数" />
-                </BarChart>
-              </ResponsiveContainer>
+              {trendData.length === 0 ? (
+                <EmptyState title="暂无月度数据" description="有训练记录后，将展示每月总组数与总次数" />
+              ) : (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={trendData} barGap={4}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
+                    <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
+                    <YAxis stroke="#6b7280" fontSize={12} allowDecimals={false} />
+                    <Tooltip contentStyle={tooltipDarkStyle} />
+                    <Bar dataKey="sets" fill="#7d9b76" radius={[4, 4, 0, 0]} name="总组数" />
+                    <Bar dataKey="reps" fill="#c9a96e" radius={[4, 4, 0, 0]} name="总次数" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </Card>
           </div>
         </>

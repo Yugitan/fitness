@@ -47,7 +47,8 @@
 
     <update id="update">
         UPDATE training_record
-        SET train_date = #{trainDate}, duration = #{duration}, notes = #{notes}
+        SET train_date = #{trainDate}, duration = #{duration}, difficulty = #{difficulty},
+            total_sets = #{totalSets}, total_reps = #{totalReps}, notes = #{notes}
         WHERE id = #{id}
     </update>
 
@@ -65,4 +66,29 @@
         UPDATE training_record SET is_deleted = 1
         WHERE user_id IS NULL AND is_deleted = 0 AND DATE(create_time) &lt;= #{cutoffDate}
     </update>
+
+    <select id="getPersonalStats" resultType="java.util.HashMap">
+        SELECT
+            COUNT(*) AS totalWorkouts,
+            COALESCE(SUM(total_sets), 0) AS totalSets,
+            COALESCE(SUM(total_reps), 0) AS totalReps,
+            COALESCE(AVG(duration), 0) AS avgDuration
+        FROM training_record
+        WHERE is_deleted = 0
+        <if test="userId != null">AND user_id = #{userId}</if>
+    </select>
+
+    <select id="getMonthlyTrend" resultType="java.util.HashMap">
+        SELECT
+            DATE_FORMAT(train_date, '%Y-%m') AS month,
+            COUNT(*) AS workouts,
+            COALESCE(SUM(total_sets), 0) AS sets,
+            COALESCE(SUM(total_reps), 0) AS reps
+        FROM training_record
+        WHERE is_deleted = 0
+        <if test="userId != null">AND user_id = #{userId}</if>
+          AND train_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+        GROUP BY DATE_FORMAT(train_date, '%Y-%m')
+        ORDER BY month
+    </select>
 </mapper>
