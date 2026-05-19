@@ -12,6 +12,22 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        source: '/fitness/user/api/:path*',
+        destination: 'http://localhost:8080/fitness/user/api/:path*',
+      },
+      {
+        source: '/fitness/training/api/:path*',
+        destination: 'http://localhost:8080/fitness/training/api/:path*',
+      },
+      {
+        source: '/fitness/exercise/api/:path*',
+        destination: 'http://localhost:8080/fitness/exercise/api/:path*',
+      },
+      {
+        source: '/fitness/plan/api/:path*',
+        destination: 'http://localhost:8080/fitness/plan/api/:path*',
+      },
+      {
         source: '/fitness/statistics/api/:path*',
         destination: 'http://localhost:8080/fitness/statistics/api/:path*',
       },

@@ -25,9 +25,11 @@ api.interceptors.response.use(
       // Return just the data portion for convenience
       return { ...response, data: result.data, message: result.message };
     }
-    // Auth errors
+    // Auth errors — skip toast for /user/api/current (expected for guests)
     if (result.code === 401) {
-      toast.error(result.message || '请先登录');
+      if (!response.config.url?.includes('/user/api/current')) {
+        toast.error(result.message || '请先登录');
+      }
       return Promise.reject(new ApiError(result.code, result.message));
     }
     if (result.code === 403) {

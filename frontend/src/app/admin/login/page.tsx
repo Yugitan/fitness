@@ -89,10 +89,6 @@ export default function AdminLoginPage() {
             </Button>
           </form>
         </Card>
-
-        <p className="text-center text-xs text-text-dim mt-6">
-          默认管理员：admin / 123456
-        </p>
       </div>
     </div>
   );
