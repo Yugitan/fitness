@@ -3,6 +3,7 @@ package com.fitness.service.impl;
 import com.fitness.entity.User;
 import com.fitness.exception.BusinessException;
 import com.fitness.mapper.UserMapper;
+import com.fitness.service.PlanService;
 import com.fitness.service.UserService;
 import com.fitness.util.BCryptUtils;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,9 @@ public class UserServiceImpl implements UserService {
 
     @Resource
     private UserMapper userMapper;
+
+    @Resource
+    private PlanService planService;
 
     @Override
     public User register(User user) {
@@ -36,6 +40,7 @@ public class UserServiceImpl implements UserService {
             user.setStatus(1);
         }
         userMapper.insert(user);
+        planService.ensureDefaultPlans(user.getId());
         user.setPassword(null); // 不返回密码
         return user;
     }
@@ -82,13 +87,43 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User update(User user) {
-        getById(user.getId());
+        User existing = getById(user.getId());
+        if (user.getUsername() == null || user.getUsername().trim().isEmpty()) {
+            user.setUsername(existing.getUsername());
+        } else {
+            user.setUsername(user.getUsername().trim());
+            int len = user.getUsername().length();
+            if (len < 4 || len > 20) {
+                throw new BusinessException("用户名长度为 4-20 位");
+            }
+            if (!user.getUsername().equals(existing.getUsername())) {
+                User dup = userMapper.selectByUsername(user.getUsername());
+                if (dup != null) {
+                    throw new BusinessException("用户名已存在");
+                }
+            }
+        }
+        if (user.getNickname() == null) {
+            user.setNickname(existing.getNickname());
+        } else {
+            user.setNickname(user.getNickname().trim());
+        }
+        if (user.getAvatar() == null) user.setAvatar(existing.getAvatar());
+        if (user.getEmail() == null) user.setEmail(existing.getEmail());
+        if (user.getPhone() == null) user.setPhone(existing.getPhone());
+        if (user.getBio() == null) user.setBio(existing.getBio());
         userMapper.update(user);
         return getById(user.getId());
     }
 
     @Override
     public void changePassword(Long userId, String oldPassword, String newPassword) {
+        if (oldPassword == null || oldPassword.isEmpty()) {
+            throw new BusinessException("请输入原密码");
+        }
+        if (newPassword == null || newPassword.length() < 6 || newPassword.length() > 20) {
+            throw new BusinessException("新密码长度为 6-20 位");
+        }
         User user = userMapper.selectById(userId);
         if (user == null) {
             throw new BusinessException("用户不存在");

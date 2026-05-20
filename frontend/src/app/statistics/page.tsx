@@ -52,6 +52,28 @@ function normalizeTrend(rows: MonthlyTrend[] | undefined): MonthlyTrend[] {
   }));
 }
 
+/** 当月 + 前 N-1 个月，无数据月份补 0（用于柱状图固定 5 个月窗口） */
+function buildLastMonthsTrend(rows: MonthlyTrend[] | undefined, count = 5): MonthlyTrend[] {
+  const byKey = new Map<string, MonthlyTrend>();
+  for (const row of rows ?? []) {
+    byKey.set(String(row.month), row);
+  }
+  const result: MonthlyTrend[] = [];
+  const now = new Date();
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const row = byKey.get(key);
+    result.push({
+      month: formatMonthLabel(key),
+      workouts: Number(row?.workouts) || 0,
+      sets: Number(row?.sets) || 0,
+      reps: Number(row?.reps) || 0,
+    });
+  }
+  return result;
+}
+
 function normalizeFrequency(rows: ExerciseFrequency[] | undefined): FrequencyChartItem[] {
   if (!rows?.length) return [];
   return rows.map((row, i) => ({
@@ -107,7 +129,9 @@ export default function StatisticsPage() {
   const isLoading = personalLoading || trendLoading || frequencyLoading;
 
   const trendData = useMemo(() => normalizeTrend(trend), [trend]);
+  const barTrendData = useMemo(() => buildLastMonthsTrend(trend, 5), [trend]);
   const frequencyData = useMemo(() => normalizeFrequency(frequency), [frequency]);
+  const hasBarTrendData = barTrendData.some((m) => m.workouts > 0 || m.sets > 0 || m.reps > 0);
 
   const totalWorkouts = Number(personal?.totalWorkouts) || 0;
   const totalSets = Number(personal?.totalSets) || 0;
@@ -115,7 +139,7 @@ export default function StatisticsPage() {
 
   return (
     <AuthGuard>
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 stats-chart">
       <div className="mb-8">
         <h1 className="font-display text-4xl text-text mb-2">数据统计</h1>
         <p className="text-text-muted">训练数据可视化，追踪你的每一次进步</p>
@@ -137,14 +161,14 @@ export default function StatisticsPage() {
               { label: '训练次数', value: totalWorkouts.toString(), icon: Activity, color: 'text-primary-light', bg: 'bg-primary/10' },
               { label: '总组数', value: totalSets.toString(), icon: BarChart3, color: 'text-accent-light', bg: 'bg-accent/10' },
               { label: '动作种类', value: `${frequencyData.length}种`, icon: Dumbbell, color: 'text-cat-chest', bg: 'bg-cat-chest/10' },
-              { label: '平均时长', value: avgDuration > 0 ? `${Math.round(avgDuration)}分` : '--', icon: Zap, color: 'text-cat-back', bg: 'bg-cat-back/10' },
+              { label: '平均时长', value: avgDuration > 0 ? `${avgDuration.toFixed(0)}分` : '--', icon: Zap, color: 'text-cat-back', bg: 'bg-cat-back/10' },
             ].map((stat) => (
               <Card key={stat.label} hover={false} className="flex items-center gap-4">
                 <div className={`w-12 h-12 rounded-xl ${stat.bg} flex items-center justify-center flex-shrink-0`}>
                   <stat.icon size={22} className={stat.color} />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-text">{stat.value}</p>
+                  <p className="text-2xl font-bold text-text tabular-nums">{stat.value}</p>
                   <p className="text-xs text-text-muted">{stat.label}</p>
                 </div>
               </Card>
@@ -160,8 +184,8 @@ export default function StatisticsPage() {
               {trendData.length === 0 ? (
                 <EmptyState title="暂无趋势数据" description="完成训练后，这里会展示近 6 个月的训练次数" />
               ) : (
-                <ResponsiveContainer width="100%" height={280}>
-                  <AreaChart data={trendData}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={trendData} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
                     <defs>
                       <linearGradient id="workoutGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#7d9b76" stopOpacity={0.3} />
@@ -188,7 +212,7 @@ export default function StatisticsPage() {
               ) : (
                 <>
                   <div className="stat-pie-chart">
-                    <ResponsiveContainer width="100%" height={280}>
+                    <ResponsiveContainer width="100%" height={220}>
                       <PieChart>
                         <Pie
                           data={frequencyData}
@@ -243,11 +267,11 @@ export default function StatisticsPage() {
                 <BarChart3 size={18} className="text-cat-shoulder" />
                 月度组数与次数
               </h3>
-              {trendData.length === 0 ? (
-                <EmptyState title="暂无月度数据" description="有训练记录后，将展示每月总组数与总次数" />
+              {!hasBarTrendData ? (
+                <EmptyState title="暂无月度数据" description="有训练记录后，将展示当月及前四个月的总组数与总次数" />
               ) : (
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={trendData} barGap={4}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={barTrendData} barGap={4} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
                     <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
                     <YAxis stroke="#6b7280" fontSize={12} allowDecimals={false} />

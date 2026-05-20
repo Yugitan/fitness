@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { get, post, put, del } from '@/lib/api';
-import type { TrainingRecord, TrainingRecordDetail, Exercise, ExerciseCategory, Plan } from '@/types';
+import type { TrainingRecord, TrainingRecordDetail, Exercise, ExerciseCategory, Plan, PlanDetail } from '@/types';
 import { EXERCISE_CATEGORIES, CATEGORY_COLORS } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useGuestMode } from '@/hooks/useGuestMode';
@@ -124,10 +124,17 @@ export default function TrainingRecordPage() {
   });
 
   // Mutations
+  const invalidateTrainingViews = () => {
+    queryClient.invalidateQueries({ queryKey: ['training-records'] });
+    queryClient.invalidateQueries({ queryKey: ['stats-personal'] });
+    queryClient.invalidateQueries({ queryKey: ['stats-trend'] });
+    queryClient.invalidateQueries({ queryKey: ['stats-frequency'] });
+  };
+
   const createMutation = useMutation({
     mutationFn: (data: TrainingRecord) => post<TrainingRecord>('/training/api/create', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['training-records'] });
+      invalidateTrainingViews();
       setFormOpen(false);
       setAppliedPlan(null);
       toast.success('训练记录已创建');
@@ -138,7 +145,7 @@ export default function TrainingRecordPage() {
     mutationFn: ({ id, data }: { id: number; data: TrainingRecord }) =>
       put<TrainingRecord>(`/training/api/${id}`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['training-records'] });
+      invalidateTrainingViews();
       setFormOpen(false);
       setEditingRecord(null);
       toast.success('训练记录已更新');
@@ -148,7 +155,7 @@ export default function TrainingRecordPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => del(`/training/api/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['training-records'] });
+      invalidateTrainingViews();
       setDeleteConfirm(null);
       toast.success('训练记录已删除');
     },
@@ -157,7 +164,7 @@ export default function TrainingRecordPage() {
   const copyMutation = useMutation({
     mutationFn: (id: number) => post<TrainingRecord>(`/training/api/${id}/copy`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['training-records'] });
+      invalidateTrainingViews();
       toast.success('记录已复制，可进行编辑');
     },
   });
@@ -165,7 +172,7 @@ export default function TrainingRecordPage() {
   const completeMutation = useMutation({
     mutationFn: (id: number) => put(`/training/api/${id}/complete`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['training-records'] });
+      invalidateTrainingViews();
       toast.success('已标记完成');
     },
   });
@@ -479,6 +486,19 @@ function syncTrainingDetailsFromInputs(
   }));
 }
 
+function groupPlanDetailsByDay(details: PlanDetail[]): Array<[number, PlanDetail[]]> {
+  const groups = details.reduce<Record<number, PlanDetail[]>>((acc, detail) => {
+    const day = Number(detail.dayNumber) || 1;
+    if (!acc[day]) acc[day] = [];
+    acc[day].push(detail);
+    return acc;
+  }, {});
+
+  return Object.entries(groups)
+    .map(([day, dayDetails]) => [Number(day), [...dayDetails].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))] as [number, PlanDetail[]])
+    .sort(([a], [b]) => a - b);
+}
+
 function TrainingRecordDetailDialog({
   record,
   loading,
@@ -620,7 +640,25 @@ function TrainingFormDialog({
   onSave: (data: TrainingRecord) => void;
   saving: boolean;
 }) {
-  // Build initial details from record, or applied plan, or default
+  const [trainDate, setTrainDate] = useState(record?.trainDate || appliedPlan ? todayStr() : (record?.trainDate || todayStr()));
+  const [duration, setDuration] = useState(record?.duration || 60);
+  const [difficulty, setDifficulty] = useState(record?.difficulty || 2);
+  const [notes, setNotes] = useState(record?.notes || '');
+  const [exerciseSearch, setExerciseSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState<number | null>(null);
+  const [selectedPlanDay, setSelectedPlanDay] = useState<number>(1);
+
+  const planDayGroups = useMemo(
+    () => (appliedPlan?.details?.length ? groupPlanDetailsByDay(appliedPlan.details) : []),
+    [appliedPlan]
+  );
+
+  const activePlanDetails = useMemo(() => {
+    if (!appliedPlan?.details?.length) return null;
+    const selected = planDayGroups.find(([day]) => day === selectedPlanDay)?.[1] ?? [];
+    return selected.length ? selected : planDayGroups[0]?.[1] ?? [];
+  }, [appliedPlan, planDayGroups, selectedPlanDay]);
+
   const buildInitialDetails = (): TrainingRecordDetail[] => {
     if (record?.details?.length) {
       return record.details.map((d) => ({
@@ -634,7 +672,8 @@ function TrainingFormDialog({
       }));
     }
     if (appliedPlan?.details?.length) {
-      return appliedPlan.details.map((d) => ({
+      const source = activePlanDetails?.length ? activePlanDetails : planDayGroups[0]?.[1] ?? [];
+      return source.map((d) => ({
         setNumber: d.sets,
         reps: d.reps,
         weight: d.weight ?? 0,
@@ -647,18 +686,36 @@ function TrainingFormDialog({
     return [{ setNumber: 3, reps: 12, weight: 0, exerciseId: undefined, exerciseName: '', exerciseCategory: '' }];
   };
 
-  const [trainDate, setTrainDate] = useState(record?.trainDate || appliedPlan ? todayStr() : (record?.trainDate || todayStr()));
-  const [duration, setDuration] = useState(record?.duration || 60);
-  const [difficulty, setDifficulty] = useState(record?.difficulty || 2);
-  const [notes, setNotes] = useState(record?.notes || '');
   const initialDetails = buildInitialDetails();
   const [details, setDetails] = useState<TrainingRecordDetail[]>(initialDetails);
   const [detailInputs, setDetailInputs] = useState<TrainingDetailInputRow[]>(() =>
     initialDetails.map(trainingDetailToInputs)
   );
   const [detailErrors, setDetailErrors] = useState<Record<number, TrainingDetailErrors>>({});
-  const [exerciseSearch, setExerciseSearch] = useState('');
-  const [searchOpen, setSearchOpen] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!appliedPlan?.details?.length) return;
+    const firstDay = planDayGroups[0]?.[0] ?? 1;
+    setSelectedPlanDay(firstDay);
+  }, [appliedPlan, planDayGroups]);
+
+  useEffect(() => {
+    if (!appliedPlan?.details?.length || record) return;
+    const sourceDetails = activePlanDetails?.length ? activePlanDetails : planDayGroups[0]?.[1] ?? [];
+    if (!sourceDetails.length) return;
+    const mappedDetails = sourceDetails.map((d) => ({
+      setNumber: d.sets,
+      reps: d.reps,
+      weight: d.weight ?? 0,
+      exerciseId: d.exerciseId,
+      exerciseName: d.exerciseName || '',
+      exerciseCategory: d.exerciseCategory || '',
+      sortOrder: d.sortOrder ?? 0,
+    }));
+    setDetails(mappedDetails);
+    setDetailInputs(mappedDetails.map(trainingDetailToInputs));
+    setDetailErrors({});
+  }, [activePlanDetails, appliedPlan, planDayGroups, record]);
 
   const handleAddRow = () => {
     setDetails([...details, { setNumber: 3, reps: 12, weight: 0, exerciseId: undefined, exerciseName: '', exerciseCategory: '' }]);
@@ -747,9 +804,34 @@ function TrainingFormDialog({
     <Dialog open={open} onClose={onClose} title={record ? '编辑训练记录' : '新增训练记录'} size="xl">
       <form onSubmit={handleSubmit} className="space-y-5">
         {showAppliedBadge && (
-          <div className="bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 text-sm text-primary-light flex items-center gap-2">
-            <Dumbbell size={16} />
-            已从计划「{appliedPlan.title}」加载训练模板
+          <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/10 px-4 py-4 text-sm text-primary-light">
+            <div className="flex items-center gap-2">
+              <Dumbbell size={16} />
+              已从计划「{appliedPlan.title}」加载训练模板
+            </div>
+            {planDayGroups.length > 0 && (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {planDayGroups.map(([day]) => (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => setSelectedPlanDay(day)}
+                      className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                        selectedPlanDay === day
+                          ? 'bg-primary text-white'
+                          : 'bg-background/70 text-text-muted hover:text-text border border-surface-border'
+                      }`}
+                    >
+                      训练日 {day}
+                    </button>
+                  ))}
+                </div>
+                <div className="rounded-lg bg-background/60 border border-surface-border p-3 text-xs text-text-muted">
+                  当前展示：训练日 {selectedPlanDay} 的动作模板
+                </div>
+              </>
+            )}
           </div>
         )}
 

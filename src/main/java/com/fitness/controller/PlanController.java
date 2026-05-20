@@ -64,6 +64,7 @@ public class PlanController {
         Long currentUserId = getCurrentUserId(session);
         if (currentUserId != null) {
             userId = currentUserId;
+            planService.ensureDefaultPlans(currentUserId);
         }
         List<Plan> plans;
         if (groupId != null) {

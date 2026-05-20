@@ -8,6 +8,7 @@ import com.fitness.mapper.PlanDetailMapper;
 import com.fitness.mapper.PlanGroupMapper;
 import com.fitness.mapper.PlanMapper;
 import com.fitness.service.PlanService;
+import com.fitness.service.support.DefaultPlanSeeder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -150,5 +151,10 @@ public class PlanServiceImpl implements PlanService {
     @Override
     public void deleteGroup(Long id) {
         planGroupMapper.deleteById(id);
+    }
+
+    @Override
+    public void ensureDefaultPlans(Long userId) {
+        DefaultPlanSeeder.ensureForUser(userId, planMapper, this);
     }
 }

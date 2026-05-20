@@ -2,8 +2,8 @@
 
 import { useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import { get, post } from '@/lib/api';
-import type { User, LoginRequest, RegisterRequest } from '@/types';
+import { get, post, put } from '@/lib/api';
+import type { User, LoginRequest, RegisterRequest, UpdateProfileRequest, ChangePasswordRequest } from '@/types';
 import { toast } from 'sonner';
 
 export function useAuth() {
@@ -41,29 +41,28 @@ export function useAuth() {
     []
   );
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (options?: { silent?: boolean }) => {
     try {
       await post('/user/api/logout');
     } catch {
       // ignore logout API errors
     }
     clearAuth();
-    toast.success('已退出登录');
-  }, [clearAuth]);
+    await checkAuth();
+    if (!options?.silent) {
+      toast.success('已退出登录');
+    }
+  }, [checkAuth, clearAuth]);
 
-  const updateProfile = useCallback(async (data: Partial<User>) => {
-    const updated = await get<User>('/user/api/profile', data as Record<string, unknown>);
+  const updateProfile = useCallback(async (data: UpdateProfileRequest) => {
+    const updated = await put<User>('/user/api/profile', data);
     setUser(updated);
     toast.success('个人信息已更新');
     return updated;
   }, [setUser]);
 
-  const changePassword = useCallback(async (oldPassword: string, newPassword: string) => {
-    await get<User>('/user/api/password', {
-      password: oldPassword,
-      nickname: newPassword,
-    });
-    toast.success('密码已修改');
+  const changePassword = useCallback(async (data: ChangePasswordRequest) => {
+    await put('/user/api/password', data);
   }, []);
 
   return {

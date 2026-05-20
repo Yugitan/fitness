@@ -38,6 +38,8 @@ export function getDifficultyLabel(level: number | undefined): string {
       return '中级';
     case 3:
       return '高级';
+    case 4:
+      return 'Pro';
     default:
       return '未设置';
   }
@@ -51,6 +53,8 @@ export function getDifficultyColor(level: number | undefined): string {
       return 'bg-warning/20 text-warning';
     case 3:
       return 'bg-danger/20 text-danger';
+    case 4:
+      return 'bg-cat-shoulder/20 text-cat-shoulder';
     default:
       return 'bg-surface-hover text-text-muted';
   }

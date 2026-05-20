@@ -10,8 +10,11 @@ import { Card, CardTitle, CardDescription } from '@/components/ui/Card';
 import { CategoryBadge } from '@/components/shared/CategoryBadge';
 import { CardSkeleton } from '@/components/shared/Skeleton';
 import { Dumbbell, TrendingUp, Trophy, Zap, ChevronRight, Play } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function HomePage() {
+  const { isLoggedIn } = useAuth();
+
   const { data: exercises, isLoading: exLoading } = useQuery({
     queryKey: ['exercises'],
     queryFn: () => get<Exercise[]>('/exercise/api/list'),
@@ -167,13 +170,34 @@ export default function HomePage() {
             <p className="text-text-muted mb-8 max-w-md mx-auto">
               加入我们，记录每一次训练，见证每一点进步。
             </p>
-            <div className="flex gap-3 justify-center">
-              <Link href="/register/">
-                <Button size="lg" variant="accent">立即注册</Button>
-              </Link>
-              <Link href="/exercise/">
-                <Button size="lg" variant="outline">先看看</Button>
-              </Link>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              {isLoggedIn ? (
+                <>
+                  <Link href="/training/">
+                    <Button size="lg" variant="accent" className="w-full sm:w-auto gap-2">
+                      继续训练
+                    </Button>
+                  </Link>
+                  <Link href="/statistics/">
+                    <Button size="lg" variant="outline" className="w-full sm:w-auto gap-2">
+                      查看统计
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/register/">
+                    <Button size="lg" variant="accent" className="w-full sm:w-auto gap-2">
+                      立即注册
+                    </Button>
+                  </Link>
+                  <Link href="/exercise/">
+                    <Button size="lg" variant="outline" className="w-full sm:w-auto gap-2">
+                      先看看
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -15,7 +15,7 @@
     <select id="selectAll" resultMap="BaseResultMap">
         SELECT * FROM plan_group
         WHERE is_deleted = 0
-        <if test="userId != null">AND user_id = #{userId}</if>
+        <if test="userId != null">AND (user_id IS NULL OR user_id = #{userId})</if>
         ORDER BY sort_weight DESC, id ASC
     </select>
 

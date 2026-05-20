@@ -674,6 +674,7 @@ function PlanFormDialog({
                 { value: 1, label: '初级' },
                 { value: 2, label: '中级' },
                 { value: 3, label: '高级' },
+                { value: 4, label: 'Pro' },
               ].map((opt) => (
                 <button
                   key={opt.value}

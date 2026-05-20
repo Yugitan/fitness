@@ -32,4 +32,7 @@ public interface PlanMapper {
 
     /** 更新浏览次数 */
     int updateViewCount(@Param("id") Long id);
+
+    /** 统计用户是否已有指定标题的计划 */
+    int countByUserIdAndTitle(@Param("userId") Long userId, @Param("title") String title);
 }

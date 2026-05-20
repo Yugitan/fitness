@@ -71,4 +71,9 @@
     <update id="updateViewCount">
         UPDATE plan SET view_count = view_count + 1 WHERE id = #{id}
     </update>
+
+    <select id="countByUserIdAndTitle" resultType="int">
+        SELECT COUNT(*) FROM plan
+        WHERE user_id = #{userId} AND title = #{title} AND is_deleted = 0
+    </select>
 </mapper>

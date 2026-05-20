@@ -21,6 +21,16 @@ export interface User {
   updateTime?: string;
 }
 
+export interface UpdateProfileRequest {
+  username: string;
+  nickname?: string;
+}
+
+export interface ChangePasswordRequest {
+  oldPassword: string;
+  newPassword: string;
+}
+
 // ============ Exercise ============
 export type ExerciseCategory = '胸部' | '背部' | '肩部' | '手臂' | '腿部' | '核心';
 
@@ -115,7 +125,7 @@ export interface Plan {
   title: string;
   description?: string;
   targetBodyPart?: string;
-  difficultyLevel?: number; // 1=beginner, 2=intermediate, 3=advanced
+  difficultyLevel?: number; // 1=beginner, 2=intermediate, 3=advanced, 4=pro
   trainDays?: number;
   viewCount?: number;
   collectCount?: number;

@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
-import { Dumbbell, Menu, X, User, LogOut, Settings, ChevronDown, Trophy, BarChart3 } from 'lucide-react';
+import { Dumbbell, Menu, X, User, LogOut, Settings, ChevronDown, Trophy, BarChart3, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { UserProfileDialog } from '@/components/shared/UserProfileDialog';
 
 const NAV_LINKS = [
   { href: '/exercise/', label: '动作库', icon: Dumbbell },
@@ -16,9 +17,10 @@ const NAV_LINKS = [
 
 export function Navbar() {
   const pathname = usePathname();
-  const { user, isLoggedIn, isAdmin, logout, isLoading } = useAuth();
+  const { user, isLoggedIn, isAdmin, logout, isLoading, refresh } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,9 +40,9 @@ export function Navbar() {
   if (pathname?.startsWith('/admin')) return null;
 
   return (
-    <nav className="sticky top-0 z-40 border-b border-surface-border bg-background/80 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+    <nav className="sticky top-0 z-40 border-b border-surface-border bg-background/80 backdrop-blur-xl overflow-visible">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 overflow-visible">
+        <div className="flex items-center justify-between h-16 overflow-visible">
           {/* Logo */}
           <Link
             href="/"
@@ -53,7 +55,7 @@ export function Navbar() {
           </Link>
 
           {/* Desktop nav links */}
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-2 overflow-visible">
             {NAV_LINKS.map((link) => {
               const Icon = link.icon;
               const isActive = pathname?.startsWith(link.href);
@@ -90,37 +92,56 @@ export function Navbar() {
                   <ChevronDown size={14} className={cn('transition-transform', userMenuOpen && 'rotate-180')} />
                 </button>
                 {userMenuOpen && (
-                    <div className="absolute right-0 top-full mt-1 w-48 bg-surface border border-surface-border rounded-xl shadow-xl z-20 py-1 animate-scale-in">
-                      <div className="px-3 py-2 border-b border-surface-border">
-                        <p className="text-sm font-medium text-text">{user?.nickname || user?.username}</p>
-                        <p className="text-xs text-text-muted">{user?.username}</p>
+                    <div className="absolute right-0 top-full mt-2 w-48 min-w-[11rem] overflow-hidden rounded-xl border border-surface-border bg-surface shadow-xl z-50 origin-top-right animate-scale-in">
+                      <div className="px-3 py-2.5 border-b border-surface-border bg-surface">
+                        <p className="text-sm font-medium text-text truncate">{user?.nickname || user?.username}</p>
+                        <p className="text-xs text-text-muted truncate">{user?.username}</p>
                       </div>
-                      {isAdmin && (
-                        <Link
-                          href="/admin"
-                          className="flex items-center gap-2 px-3 py-2 text-sm text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUserMenuOpen(false);
+                            setProfileOpen(true);
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-text-muted transition-colors hover:bg-surface-hover hover:text-text"
                         >
-                          <Settings size={14} />
-                          管理后台
+                          <UserCog size={14} className="shrink-0" />
+                          账号设置
+                        </button>
+                        {isAdmin && (
+                          <Link
+                            href="/admin"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-text-muted transition-colors hover:bg-surface-hover hover:text-text"
+                          >
+                            <Settings size={14} className="shrink-0" />
+                            管理后台
+                          </Link>
+                        )}
+                        <Link
+                          href="/statistics/"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-text-muted transition-colors hover:bg-surface-hover hover:text-text"
+                        >
+                          <BarChart3 size={14} className="shrink-0" />
+                          数据统计
                         </Link>
-                      )}
-                      <Link
-                        href="/statistics/"
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
-                      >
-                        <BarChart3 size={14} />
-                        数据统计
-                      </Link>
-                      <button
-                        onClick={() => {
-                          setUserMenuOpen(false);
-                          logout();
-                        }}
-                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-text-muted hover:text-danger hover:bg-surface-hover transition-colors"
-                      >
-                        <LogOut size={14} />
-                        退出登录
-                      </button>
+                      </div>
+                      <div className="border-t border-surface-border">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setUserMenuOpen(false);
+                            await logout();
+                            await refresh();
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+                        >
+                          <LogOut size={14} className="shrink-0" />
+                          退出登录
+                        </button>
+                      </div>
                     </div>
                 )}
               </div>
@@ -179,6 +200,16 @@ export function Navbar() {
                     </div>
                     <span className="text-sm font-medium text-text">{user?.nickname || user?.username}</span>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileOpen(false);
+                      setProfileOpen(true);
+                    }}
+                    className="flex items-center gap-3 w-full px-3 py-3 rounded-lg text-sm text-text-muted hover:text-text hover:bg-surface-hover"
+                  >
+                    <UserCog size={18} /> 账号设置
+                  </button>
                   {isAdmin && (
                     <Link
                       href="/admin"
@@ -189,9 +220,10 @@ export function Navbar() {
                     </Link>
                   )}
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       setMobileOpen(false);
-                      logout();
+                      await logout();
+                      await refresh();
                     }}
                     className="flex items-center gap-3 w-full px-3 py-3 rounded-lg text-sm text-danger hover:bg-surface-hover"
                   >
@@ -211,6 +243,10 @@ export function Navbar() {
             </div>
           </div>
         </div>
+      )}
+
+      {isLoggedIn && (
+        <UserProfileDialog open={profileOpen} onClose={() => setProfileOpen(false)} />
       )}
     </nav>
   );

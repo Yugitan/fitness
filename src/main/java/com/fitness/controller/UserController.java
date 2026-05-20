@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpSession;
+import java.util.Map;
 
 /**
  * 用户控制器（账号体系预留）
@@ -72,14 +73,14 @@ public class UserController {
     /** API：修改密码 */
     @PutMapping("/api/password")
     @ResponseBody
-    public Result changePassword(@RequestBody User pwdRequest, HttpSession session) {
+    public Result changePassword(@RequestBody Map<String, String> body, HttpSession session) {
         User loginUser = (User) session.getAttribute("loginUser");
         if (loginUser == null) {
             return Result.unauthorized("请先登录");
         }
         userService.changePassword(loginUser.getId(),
-                pwdRequest.getPassword(), // 原密码
-                pwdRequest.getNickname());  // 新密码（通过nickname字段传递）
+                body.get("oldPassword"),
+                body.get("newPassword"));
         return Result.success("密码修改成功");
     }
 }

@@ -51,4 +51,7 @@ public interface PlanService {
 
     /** 删除分组 */
     void deleteGroup(Long id);
+
+    /** 为用户补齐四套默认训练计划（缺失时创建，已删除的不恢复） */
+    void ensureDefaultPlans(Long userId);
 }
